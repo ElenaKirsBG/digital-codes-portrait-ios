@@ -1,0 +1,24 @@
+kind = "mobile"
+previewPath = "/portrait-ios/"
+title = "Портрет по цифровым кодам"
+description = "Нативное iOS-приложение для расчётов психологического портрета по авторской методике. Хранит карточки людей и результаты в архиве, поддерживает экспорт отчёта и резервное копирование."
+version = "1.0.0"
+id = "artifacts/portrait-ios"
+router = "expo-domain"
+
+[[services]]
+name = "expo"
+ensurePreviewReachable = "/status"
+paths = [ "/portrait-ios/" ]
+localPort = 19428
+
+[services.development]
+run = "pnpm --filter @workspace/portrait-ios run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/portrait-ios", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/portrait-ios", "run", "serve" ]
+
+[services.env]
+PORT = "19428"
+BASE_PATH = "/portrait-ios/"
