@@ -73,11 +73,26 @@ export default function ReportScreen() {
   };
 
   const header = <Stack.Screen options={{ title: 'Портрет', headerShown: true, headerBackTitle: 'Назад', headerStyle: { backgroundColor: colors.background }, headerTintColor: colors.primary, headerShadowVisible: false }} />;
+  const homeNavigation = (
+    <View style={[styles.homeBar, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
+      <Pressable
+        testID="report-go-home"
+        accessibilityRole="button"
+        accessibilityLabel="На главную — ввод нового человека"
+        onPress={() => router.replace('/')}
+        style={({ pressed }) => [styles.homeButton, { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1 }]}
+      >
+        <Feather name="home" size={18} color={colors.primaryForeground} />
+        <Text style={[styles.homeButtonText, { color: colors.primaryForeground }]}>На главную</Text>
+      </Pressable>
+    </View>
+  );
 
   if (!ready) {
     return (
       <View style={[styles.screen, { backgroundColor: colors.background }]}>
         {header}
+        {homeNavigation}
         <View style={[styles.content, pageWidth, { paddingTop: Platform.OS === 'web' ? 67 : 18 }]} accessibilityLabel="Загружаем архив">
           <SkeletonBlock height={230} />
           <SkeletonBlock height={110} />
@@ -91,6 +106,7 @@ export default function ReportScreen() {
     return (
       <View style={[styles.screen, styles.notFound, { backgroundColor: colors.background }]}>
         {header}
+        {homeNavigation}
         <Feather name="file-minus" size={28} color={colors.mutedForeground} />
         <Text style={[styles.notFoundText, { color: colors.foreground }]}>Запись не найдена</Text>
         <Pressable onPress={() => router.replace('/archive')}>
@@ -103,7 +119,8 @@ export default function ReportScreen() {
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       {header}
-      <ScrollView contentContainerStyle={[styles.content, pageWidth, { paddingTop: Platform.OS === 'web' ? 67 : 12, paddingBottom: 48 }]}>
+      {homeNavigation}
+      <ScrollView contentContainerStyle={[styles.content, pageWidth, { paddingTop: 12, paddingBottom: 48 }]}>
         <FadeIn>
           <View style={[styles.hero, { backgroundColor: colors.wineDeep }]}>
             <View style={styles.orn}><Ornament size={220} color="#FBF3E438" accent={colors.gold} /></View>
@@ -278,6 +295,9 @@ export default function ReportScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
+  homeBar: { paddingHorizontal: 20, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth },
+  homeButton: { alignSelf: 'flex-start', minHeight: 48, paddingHorizontal: 18, borderRadius: 24, flexDirection: 'row', alignItems: 'center', gap: 9 },
+  homeButtonText: { fontSize: 15, fontWeight: '700' },
   content: { paddingHorizontal: 20, gap: 14 },
   hero: { minHeight: 250, borderRadius: 28, padding: 24, overflow: 'hidden', justifyContent: 'flex-end', gap: 10 },
   orn: { position: 'absolute', right: -50, top: -50 },

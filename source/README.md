@@ -6,7 +6,7 @@
 Формулы Excel сохранены. Названия книг, авторы и страницы не отображаются в приложении и PDF-отчёте.
 
 ## Готовый сайт — ручная загрузка в GitHub
-1. Распакуйте digital-codes-portrait-ios-expanded-140.zip.
+1. Распакуйте digital-codes-portrait-ios-home-button.zip.
 2. В ElenaKirsBG/digital-codes-portrait-ios выберите Add file → Upload files.
 3. Загрузите СОДЕРЖИМОЕ архива в корень репозитория, а не ZIP и не внешнюю папку.
 4. В корне должны быть index.html, 404.html, .nojekyll, папки _expo и assets.
