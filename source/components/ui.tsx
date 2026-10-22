@@ -1,4 +1,3 @@
-import { Feather } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Line } from 'react-native-svg';
@@ -56,21 +55,19 @@ export function ScreenTitle({ eyebrow, title, subtitle }: { eyebrow: string; tit
   );
 }
 
-export function BlockView({ block }: { block: InterpretationBlock }) {
+export function BlockView({ block, prominent = false }: { block: InterpretationBlock; prominent?: boolean }) {
   const colors = useColors();
   const [open, setOpen] = useState(false);
-  const long = block.text.length > 280;
-  const isBook = block.source?.kind === 'book';
+  const long = !prominent && block.text.length > 280;
   return (
-    <View style={[s.block, { borderLeftColor: isBook ? colors.gold : colors.border }]}>
-      <Text style={[s.blockTitle, { color: colors.foreground }]}>{block.title}</Text>
-      <Text numberOfLines={long && !open ? 5 : undefined} style={[s.blockText, { color: colors.foreground }]}>{block.text}</Text>
+    <View style={[s.block, prominent ? s.blockProminent : null, { borderLeftColor: prominent ? colors.gold : colors.border }]}>
+      <Text style={[prominent ? s.proTitle : s.blockTitle, { color: prominent ? colors.primary : colors.foreground }]}>{block.title}</Text>
+      <Text numberOfLines={long && !open ? 5 : undefined} style={[prominent ? s.proText : s.blockText, { color: colors.foreground }]}>{block.text}</Text>
       {long ? (
         <Pressable accessibilityRole="button" onPress={() => setOpen((v) => !v)} hitSlop={8}>
           <Text style={[s.more, { color: colors.primary }]}>{open ? 'Свернуть' : 'Читать полностью'}</Text>
         </Pressable>
       ) : null}
-      {block.note ? <Text style={[s.note, { color: colors.mutedForeground }]}>{block.note}</Text> : null}
     </View>
   );
 }
@@ -106,6 +103,9 @@ const s = StyleSheet.create({
   blockTitle: { fontSize: 12, fontWeight: '700', letterSpacing: 0.3, textTransform: 'uppercase' },
   blockText: { fontFamily: serif, fontSize: 15.5, lineHeight: 25 },
   more: { fontSize: 12.5, fontWeight: '700' },
+  blockProminent: { borderLeftWidth: 0, paddingLeft: 0, gap: 8 },
+  proTitle: { fontFamily: serif, fontSize: 21, lineHeight: 28 },
+  proText: { fontFamily: serif, fontSize: 17.5, lineHeight: 30, maxWidth: 640 },
   note: { fontSize: 12, lineHeight: 18, fontStyle: 'italic' },
   avatar: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontFamily: serif, fontSize: 19 },

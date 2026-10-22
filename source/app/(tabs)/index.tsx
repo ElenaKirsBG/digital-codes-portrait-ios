@@ -87,7 +87,7 @@ export default function HomeScreen() {
         <FadeIn>
           <View style={[styles.intro, { backgroundColor: colors.wineDeep }]}>
             <View style={styles.orn}><Ornament size={230} color="#FBF3E440" accent={colors.gold} /></View>
-            <Eyebrow>ЛИЧНОЕ ЧИТАЛЬНОЕ ПРОСТРАНСТВО</Eyebrow>
+            <Eyebrow>РАСШИРЕННЫЙ РАЗБОР · 140 ТЕМ</Eyebrow>
             <Text style={styles.introTitle}>Символический портрет</Text>
             <Text style={styles.introBody}>
               Введите имя и дату рождения, чтобы познакомиться с ключевыми темами портрета. Раскрывайте каждый аспект и читайте подробный разбор.

@@ -3,7 +3,7 @@ import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
 import { Person } from '@/lib/people';
 import { calculatePortrait, PortraitCalculation, PortraitPosition } from '@/lib/calculation';
-import { getNameInterpretations, getPositionInterpretations } from '@/lib/interpretations';
+import { getNameInterpretations, getPositionReport } from '@/lib/interpretations';
 import type { InterpretationBlock } from '@/lib/interpretations';
 import { getReportContext } from '@/lib/books';
 
@@ -17,19 +17,20 @@ function escapeHtml(value: string) {
 }
 
 const POSITION_GROUPS: Array<{ title: string; numbers: number[] }> = [
+  { title: 'Главные аспекты портрета', numbers: [7, 8, 12, 13, 14] },
   { title: 'Жизненный путь', numbers: [1, 2, 3] },
-  { title: 'Психика и миссия', numbers: [4, 5, 6, 7, 8] },
+  { title: 'Внутренний мир', numbers: [4, 5, 6] },
   { title: 'Кармические позиции', numbers: [9, 10, 11, 15, 17, 18] },
-  { title: 'Гармония и восприятие', numbers: [12, 13, 14, 30] },
+  { title: 'Дополнительная позиция', numbers: [30] },
 ];
 
 function positionMarkup(position: PortraitPosition) {
   const cardName = position.arcana
     ? `${position.code} · ${position.arcana}`
     : `Код ${position.code} · аркан не найден`;
-  const interpretations = getPositionInterpretations(position.number, position.code)
-    .map(interpretationMarkup)
-    .join('');
+  const { primary, details } = getPositionReport(position.number, position.code);
+  const interpretations = primary.map(interpretationMarkup).join('')
+    + (details.length ? `<h3>Дополнительные подробности</h3>${details.map(interpretationMarkup).join('')}` : '');
   return `<article class="position-card"><div class="position-heading"><div class="position-number">${position.number}</div><div><div class="position-label">${escapeHtml(position.label)}</div><div class="position-value">${escapeHtml(cardName)}</div></div></div>${interpretations}</article>`;
 }
 
@@ -82,7 +83,7 @@ export function portraitReportHtml(person: Person) {
   ).join('');
 
   return `<!doctype html>
-<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Портрет — ${escapeHtml(fullName)}</title>
 <style>
   @page { size: A4; margin: 18mm 16mm; }
   * { box-sizing: border-box; }
@@ -116,6 +117,9 @@ export function portraitReportHtml(person: Person) {
   .note { margin-top: 18px; padding: 12px; border-radius: 10px; background: #F7F4EC; color: #59675F; font-size: 10px; line-height: 1.5; }
   .context-card { margin-bottom: 18px; padding: 15px; background: #F7F3EC; }
   footer { position: fixed; bottom: 0; left: 0; right: 0; color: #758179; font-size: 10px; }
+  .print-actions { position: sticky; top: 0; padding: 14px; margin-bottom: 22px; background: #FBF7EF; border: 1px solid #D6C9B6; font: 14px/1.5 system-ui; }
+  .print-actions button { display: block; margin-bottom: 8px; padding: 10px 16px; border: 0; border-radius: 8px; background: #441B2B; color: white; font: inherit; cursor: pointer; }
+  @media print { .print-actions { display: none; } }
 </style></head><body>
   <div class="eyebrow">ЦИФРОВОЙ ПОРТРЕТ · ЛИЧНЫЙ РАЗБОР</div>
   <h1>${escapeHtml(fullName)}</h1>
@@ -133,7 +137,32 @@ export function portraitReportHtml(person: Person) {
 export async function exportPortraitPdf(person: Person) {
   const html = portraitReportHtml(person);
   if (Platform.OS === 'web') {
-    await Print.printAsync({ html });
+    // Expo Print's web implementation ignores `html` and prints the current
+    // application screen. Use an isolated, complete report document instead.
+    // Open synchronously within the click gesture so Safari can allow the tab.
+    const printWindow = window.open('about:blank', '_blank');
+    if (!printWindow) {
+      throw new Error('Разрешите открытие новой вкладки в браузере и повторите экспорт PDF.');
+    }
+    printWindow.opener = null;
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+    const controls = printWindow.document.createElement('aside');
+    controls.className = 'print-actions';
+    const button = printWindow.document.createElement('button');
+    button.type = 'button';
+    button.textContent = 'Печать / сохранить PDF';
+    button.addEventListener('click', () => {
+      printWindow.focus();
+      printWindow.print();
+    });
+    const help = printWindow.document.createElement('div');
+    help.textContent = 'Это полный отчёт по всем аспектам. В меню печати можно сохранить PDF. Если меню не открылось, нажмите кнопку выше.';
+    controls.append(button, help);
+    printWindow.document.body.prepend(controls);
+    printWindow.focus();
+    printWindow.print();
     return;
   }
 

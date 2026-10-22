@@ -14,9 +14,15 @@ export function bookCitation(reading: BookReading): string {
 }
 
 export function getBookReadings(position: number, arcanaCode: number): BookReading[] {
-  return BOOK_READINGS.filter((reading) =>
-    reading.arcanaCode === arcanaCode || reading.positions?.includes(position),
-  );
+  return BOOK_READINGS.filter((reading) => {
+    if (reading.arcanaCode !== undefined && reading.arcanaCode !== arcanaCode) return false;
+    if (reading.positions && !reading.positions.includes(position)) return false;
+    return reading.arcanaCode !== undefined || Boolean(reading.positions);
+  }).sort((a, b) => {
+    const specificity = (reading: BookReading) =>
+      (reading.arcanaCode !== undefined ? 2 : 0) + (reading.positions ? 1 : 0);
+    return specificity(b) - specificity(a);
+  });
 }
 
 export function getReportContext(): BookReading[] {

@@ -3,7 +3,7 @@ import test from 'node:test';
 import fs from 'node:fs';
 import ts from 'typescript';
 import { calculatePortrait } from '../lib/calculation.ts';
-import { getNameInterpretations, getPositionInterpretations } from '../lib/interpretations.ts';
+import { getNameInterpretations, getPositionInterpretations, getPositionReport } from '../lib/interpretations.ts';
 import { normalizeBirthDate } from '../lib/birth-date.ts';
 import { BOOK_READINGS, BOOK_SOURCES, bookCitation, getBookReadings, getReportContext } from '../lib/books.ts';
 
@@ -111,7 +111,7 @@ test('attaches aspect-specific workbook interpretations to the example positions
 
 test('provides traceable selected passages from all four supplied PDF books', () => {
   assert.deepEqual(new Set(BOOK_SOURCES.map((source) => source.id)), new Set(['magic', 'portrait', 'mystery', 'health']));
-  assert.equal(BOOK_READINGS.length, 41);
+  assert.equal(BOOK_READINGS.length, 140);
   assert.equal(new Set(BOOK_READINGS.map((reading) => reading.id)).size, BOOK_READINGS.length);
   for (const reading of BOOK_READINGS) {
     const source = BOOK_SOURCES.find((item) => item.id === reading.sourceId);
@@ -154,7 +154,7 @@ test('keeps minor suits and health passages as reference, never as computed pers
   assert.match(context.find((reading) => reading.sourceId === 'health').text, /не заменяют визита к врачу/);
 });
 
-test('PDF keeps enriched interpretations but never displays books, authors or source pages', () => {
+test('PDF keeps enriched interpretations but never displays books, authors or source pages', async () => {
   const code = fs.readFileSync(new URL('../lib/pdf.ts', import.meta.url), 'utf8');
   const { outputText } = ts.transpileModule(code, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
@@ -164,21 +164,92 @@ test('PDF keeps enriched interpretations but never displays books, authors or so
     'expo-sharing': {},
     'react-native': { Platform: { OS: 'web' } },
     '@/lib/calculation': { calculatePortrait },
-    '@/lib/interpretations': { getNameInterpretations, getPositionInterpretations },
+    '@/lib/interpretations': { getNameInterpretations, getPositionReport },
     '@/lib/books': { getReportContext },
   };
   const module = { exports: {} };
-  new Function('require', 'module', 'exports', outputText)((id) => {
+  let opened = false;
+  let printed = false;
+  let written = '';
+  const popup = {
+    opener: 'parent',
+    document: {
+      open() {},
+      write(html) { written = html; },
+      close() {},
+      createElement() { return { addEventListener() {}, append() {} }; },
+      body: { prepend() {} },
+    },
+    focus() {},
+    print() { printed = true; },
+  };
+  const browser = { open(url, target) { assert.equal(url, 'about:blank'); assert.equal(target, '_blank'); opened = true; return popup; } };
+  new Function('require', 'module', 'exports', 'window', outputText)((id) => {
     assert.ok(id in shims, `Unexpected PDF dependency: ${id}`);
     return shims[id];
-  }, module, module.exports);
-  const html = module.exports.portraitReportHtml({
+  }, module, module.exports, browser);
+  const person = {
     id: 'test', firstName: 'Тест', middleName: 'Тестович', lastName: '<Проверка>',
     birthDate: '2005-06-09', createdAt: '2026-10-22T00:00:00Z',
-  });
+  };
+  const html = module.exports.portraitReportHtml(person);
   assert.match(html, /начало нового цикла/);
   assert.match(html, /Что означает психическая гармония/);
+  assert.ok(html.indexOf('Миссия и направление') < html.indexOf('<h2>Жизненный путь</h2>'));
   assert.match(html, /&lt;Проверка&gt;/);
+  assert.equal((html.match(/class="position-card"/g) ?? []).length, calculatePortrait(person.birthDate, person).positions.length);
   for (const source of BOOK_SOURCES) assert.ok(!html.includes(source.title), source.id);
   assert.doesNotMatch(html, /Хшанов|Залесск|стр\. файла PDF|ИСТОЧНИК|Источники и объём|Авторская таблица Excel/);
+  await module.exports.exportPortraitPdf(person);
+  assert.ok(opened && printed, 'prints a separate report tab, not the app screen');
+  assert.equal(written, html);
+  assert.equal(popup.opener, null);
+  browser.open = () => null;
+  await assert.rejects(module.exports.exportPortraitPdf(person), /Разрешите открытие новой вкладки/);
+});
+
+test('matches all 99 expanded passages to BOTH the actual position and actual arcana code', () => {
+  const expanded = BOOK_READINGS.filter((reading) => reading.sourceId === 'portrait' && reading.arcanaCode !== undefined);
+  assert.equal(expanded.length, 99);
+  for (const position of [7, 8, 13, 14]) {
+    for (let code = 1; code <= 22; code++) {
+      const matches = getBookReadings(position, code).filter((reading) => reading.sourceId === 'portrait' && reading.arcanaCode !== undefined);
+      assert.equal(matches.length, 1, `${position}/${code}`);
+      assert.equal(matches[0].arcanaCode, code);
+      assert.deepEqual(matches[0].positions, [position]);
+    }
+  }
+  const harmony = expanded.filter((reading) => reading.positions.includes(12));
+  assert.equal(harmony.length, 11);
+  assert.ok(harmony.every((reading) => reading.arcanaCode % 2 === 0));
+  for (const reading of expanded) {
+    assert.doesNotMatch(reading.text, /Бисмарк|Муссолини|Иоанн|Павел I|иммунитет|депрессии им|суждено долго жить|целител|биоэнер|Р[эе]йки/i);
+  }
+});
+
+test('puts real expanded readings first and preserves worksheet material as secondary detail', () => {
+  const calc = calculatePortrait('2005-06-09', { firstName: 'Тест', middleName: 'Тестович', lastName: 'Проверка' });
+  for (const number of [7, 8, 12, 13, 14]) {
+    const position = calc.positions.find((item) => item.number === number);
+    const report = getPositionReport(number, position.code);
+    assert.ok(report.primary.length >= 2);
+    assert.equal(report.primary[0].source.sourceId, 'magic');
+    assert.ok(report.primary.every((block) => block.source?.kind === 'book'));
+    assert.ok(report.details.every((block) => block.source?.kind === 'workbook'));
+    assert.ok(report.primary.some((block) => block.source?.sourceId === 'magic'));
+  }
+  assert.ok(getPositionReport(7, 22).primary.some((block) => block.source.readingId === 'portrait-mission-22'));
+  assert.ok(getPositionReport(8, 12).primary.some((block) => block.source.readingId === 'portrait-gifts-12'));
+  assert.ok(getPositionReport(12, 12).primary.some((block) => block.source.readingId === 'portrait-harmony-12'));
+  const opening = getPositionReport(7, 22).primary[0];
+  assert.equal(opening.title, 'Психологический образ');
+  assert.match(opening.text, /начало нового цикла/);
+  assert.ok(!getPositionInterpretations(7, 22).filter((block) => block.source?.kind === 'workbook').some((block) => block.text === opening.text));
+});
+
+test('user-facing report and reader contain no provenance displays', () => {
+  for (const file of ['../app/report/[id].tsx', '../app/reading/[id].tsx', '../app/(tabs)/library.tsx', '../components/ui.tsx']) {
+    const source = fs.readFileSync(new URL(file, import.meta.url), 'utf8');
+    assert.doesNotMatch(source, /Источник каждого|ИСТОЧНИК|bookCitation\(|source\.label|source\.author|source\.title|страниц|по таблице/);
+  }
 });

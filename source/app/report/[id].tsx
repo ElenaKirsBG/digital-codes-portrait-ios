@@ -7,7 +7,7 @@ import { useColors } from '@/hooks/useColors';
 import { useArchive } from '@/lib/people';
 import { calculatePortrait } from '@/lib/calculation';
 import { getReportContext } from '@/lib/books';
-import { getNameInterpretations, getPositionInterpretations } from '@/lib/interpretations';
+import { getPositionReport as positionReport, getNameInterpretations } from '@/lib/interpretations';
 import { exportPortraitPdf } from '@/lib/pdf';
 
 const POSITION_GROUPS = [
@@ -17,26 +17,42 @@ const POSITION_GROUPS = [
   { title: 'Гармония и восприятие', hint: 'Равновесие и взгляд со стороны', numbers: [12, 13, 14, 30] },
 ];
 
+const FEATURED = [
+  { number: 7, short: 'Миссия' },
+  { number: 8, short: 'Дары' },
+  { number: 12, short: 'Гармония' },
+  { number: 13, short: 'Взгляд на себя' },
+  { number: 14, short: 'Взгляд окружающих' },
+];
+const FEATURED_NUMBERS = FEATURED.map((f) => f.number);
+
 export default function ReportScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const colors = useColors();
   const { people, ready, deletePerson } = useArchive();
   const [exporting, setExporting] = useState(false);
-  const [selected, setSelected] = useState<number | null>(7);
-  const [openName, setOpenName] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<number>(7);
+  const [showDetails, setShowDetails] = useState(false);
+  const [showNames, setShowNames] = useState(false);
   const person = people.find((item) => item.id === id);
   const fullName = person ? `${person.lastName} ${person.firstName} ${person.middleName}` : '';
   const calculation = person ? person.calculation ?? calculatePortrait(person.birthDate, person) : null;
   const context = getReportContext();
+  const selectedPos = calculation?.positions.find((p) => p.number === selected);
+  const selectedReport = selectedPos ? positionReport(selectedPos.number, selectedPos.code) : null;
 
   const exportCard = async () => {
     if (!person) return;
+    setExportError(null);
     setExporting(true);
     try {
       await exportPortraitPdf(person);
-    } catch {
-      Alert.alert('Не удалось подготовить PDF', 'Попробуйте ещё раз.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Попробуйте ещё раз.';
+      setExportError(message);
+      if (Platform.OS !== 'web') Alert.alert('Не удалось подготовить PDF', message);
     } finally {
       setExporting(false);
     }
@@ -100,95 +116,115 @@ export default function ReportScreen() {
           </View>
         </FadeIn>
 
-        <Text style={[styles.lead, { color: colors.mutedForeground }]}>
-          Выберите позицию на карте — трактовка раскроется рядом. Источник каждого фрагмента указан под текстом.
-        </Text>
-
-        <Text style={[styles.h2, { color: colors.foreground }]}>Коды имени</Text>
-        <View style={styles.nameGrid}>
-          {calculation.nameCodes.map((item) => {
-            const open = openName === item.field;
-            const blocks = open ? getNameInterpretations(item.code) : [];
+        <Text style={[styles.h2, { color: colors.foreground, marginTop: 4 }]}>Главные аспекты</Text>
+        <View style={styles.chips}>
+          {FEATURED.map((f) => {
+            const on = selected === f.number;
             return (
-              <View key={item.field} style={[styles.nameCard, { backgroundColor: colors.card, borderColor: open ? colors.gold : colors.border }]}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityState={{ expanded: open }}
-                  onPress={() => setOpenName(open ? null : item.field)}
-                  style={styles.nameHead}
-                >
-                  <View style={{ flex: 1, gap: 3 }}>
-                    <Text style={[styles.small, { color: colors.mutedForeground }]}>{item.field}</Text>
-                    <Text style={[styles.nameValue, { color: colors.foreground }]}>
-                      {item.code === null ? `Сумма ${item.rawTotal}` : `${item.code} · ${item.arcana ?? 'аркан не найден'}`}
-                    </Text>
-                  </View>
-                  <Feather name={open ? 'chevron-up' : 'chevron-down'} size={18} color={colors.mutedForeground} />
-                </Pressable>
-                {item.unsupportedLetters.length > 0 ? (
-                  <Text style={[styles.warning, { color: colors.destructive }]}>Нет кодов в таблице: {item.unsupportedLetters.join(', ')}</Text>
-                ) : null}
-                {open ? (
-                  <View style={styles.blocks}>
-                    {blocks.length ? blocks.map((b, i) => <BlockView key={`${b.title}-${i}`} block={b} />) : (
-                      <Text style={[styles.small, { color: colors.mutedForeground }]}>Для этого кода трактовки нет в таблице.</Text>
-                    )}
-                  </View>
-                ) : null}
-              </View>
+              <Pressable
+                key={f.number}
+                testID={`aspect-${f.number}`}
+                accessibilityRole="button"
+                accessibilityState={{ selected: on }}
+                onPress={() => { setSelected(f.number); setShowDetails(false); }}
+                style={({ pressed }) => [styles.pill, { backgroundColor: on ? colors.primary : colors.card, borderColor: on ? colors.primary : colors.border, transform: [{ scale: pressed ? 0.96 : 1 }] }]}
+              >
+                <Text style={[styles.pillText, { color: on ? colors.primaryForeground : colors.foreground }]}>{f.short}</Text>
+              </Pressable>
             );
           })}
         </View>
 
-        <Text style={[styles.h2, { color: colors.foreground }]}>Карта позиций</Text>
-        {POSITION_GROUPS.map((group) => {
-          const sel = selected !== null && group.numbers.includes(selected)
-            ? calculation.positions.find((p) => p.number === selected)
-            : undefined;
-          return (
-            <View key={group.title} style={[styles.group, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.groupTitle, { color: colors.foreground }]}>{group.title}</Text>
-              <Text style={[styles.small, { color: colors.mutedForeground }]}>{group.hint}</Text>
-              <View style={styles.chips}>
-                {group.numbers.map((number) => {
-                  const p = calculation.positions.find((x) => x.number === number);
-                  if (!p) return null;
-                  const on = selected === number;
-                  return (
-                    <Pressable
-                      key={number}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: on }}
-                      accessibilityLabel={`Позиция ${number}, ${p.label}, код ${p.code}`}
-                      onPress={() => setSelected(on ? null : number)}
-                      style={({ pressed }) => [
-                        styles.chip,
-                        { backgroundColor: on ? colors.primary : colors.background, borderColor: on ? colors.primary : colors.border, transform: [{ scale: pressed ? 0.95 : 1 }] },
-                      ]}
-                    >
-                      <Text style={[styles.chipNum, { color: on ? colors.goldSoft : colors.mutedForeground }]}>{number}</Text>
-                      <Text style={[styles.chipCode, { color: on ? colors.primaryForeground : colors.foreground }]}>{p.code}</Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-              {sel ? (
-                <FadeIn>
-                  <View style={[styles.detail, { borderTopColor: colors.border }]}>
-                    <Text style={[styles.small, { color: colors.gold, fontWeight: '700' }]}>ПОЗИЦИЯ {sel.number}</Text>
-                    <Text style={[styles.detailTitle, { color: colors.foreground }]}>{sel.label}</Text>
-                    <Text style={[styles.detailArcana, { color: colors.primary }]}>
-                      {sel.code}{sel.arcana ? ` · ${sel.arcana}` : ' · аркан не найден в таблице'}
-                    </Text>
+        {selectedPos ? (
+          <FadeIn key={selectedPos.number}>
+            <View testID="main-reading" style={[styles.reading, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.small, { color: colors.gold, fontWeight: '700', letterSpacing: 1.5 }]}>
+                {selectedPos.label.toUpperCase()}
+              </Text>
+              <Text style={[styles.arcana, { color: colors.foreground }]}>{selectedPos.arcana ?? 'Аркан не найден в таблице'}</Text>
+              <View style={[styles.rule, { backgroundColor: colors.gold }]} />
+              {selectedReport && selectedReport.primary.length ? (
+                <View style={styles.readingBlocks}>
+                  {selectedReport.primary.map((b, i) => <BlockView key={`${b.title}-${i}`} block={b} prominent />)}
+                </View>
+              ) : (
+                <Text style={[styles.small, { color: colors.mutedForeground }]}>
+                  Для этого сочетания пока нет отдельного развёрнутого чтения. Подробности расчётной таблицы — ниже.
+                </Text>
+              )}
+              {selectedReport && selectedReport.details.length ? (
+                <View style={[styles.detailsWrap, { borderTopColor: colors.border }]}>
+                  <Pressable
+                    testID="aspect-details-toggle"
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded: showDetails }}
+                    onPress={() => setShowDetails((v) => !v)}
+                    style={styles.detailsToggle}
+                  >
+                    <Text style={[styles.link, { color: colors.primary }]}>{showDetails ? 'Скрыть подробности' : 'Ещё подробности'}</Text>
+                    <Feather name={showDetails ? 'chevron-up' : 'chevron-down'} size={17} color={colors.primary} />
+                  </Pressable>
+                  {showDetails ? (
                     <View style={styles.blocks}>
-                      {getPositionInterpretations(sel.number, sel.code).map((b, i) => <BlockView key={`${b.title}-${i}`} block={b} />)}
+                      {selectedReport.details.map((b, i) => <BlockView key={`${b.title}-${i}`} block={b} />)}
                     </View>
-                  </View>
-                </FadeIn>
+                  ) : null}
+                </View>
               ) : null}
             </View>
-          );
-        })}
+          </FadeIn>
+        ) : null}
+
+        <Text style={[styles.h2, { color: colors.foreground }]}>Другие аспекты</Text>
+        <View style={styles.chips}>
+          {calculation.positions.filter((p) => !FEATURED_NUMBERS.includes(p.number)).map((p) => {
+            const on = selected === p.number;
+            return (
+              <Pressable
+                key={p.number}
+                testID={`aspect-${p.number}`}
+                accessibilityRole="button"
+                accessibilityState={{ selected: on }}
+                onPress={() => { setSelected(p.number); setShowDetails(false); }}
+                style={({ pressed }) => [styles.pill, { backgroundColor: on ? colors.primary : colors.background, borderColor: on ? colors.primary : colors.border, transform: [{ scale: pressed ? 0.96 : 1 }] }]}
+              >
+                <Text style={[styles.pillText, { color: on ? colors.primaryForeground : colors.foreground }]}>{p.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <Pressable
+          testID="name-codes-toggle"
+          accessibilityRole="button"
+          accessibilityState={{ expanded: showNames }}
+          onPress={() => setShowNames((v) => !v)}
+          style={[styles.nameToggle, { borderColor: colors.border }]}
+        >
+          <Text style={[styles.groupTitle, { color: colors.foreground, flex: 1 }]}>Имя, отчество и фамилия</Text>
+          <Feather name={showNames ? 'chevron-up' : 'chevron-down'} size={18} color={colors.mutedForeground} />
+        </Pressable>
+        {showNames ? (
+          <View style={styles.nameGrid}>
+            {calculation.nameCodes.map((item) => {
+              const blocks = getNameInterpretations(item.code);
+              return (
+                <View key={item.field} style={[styles.nameCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <Text style={[styles.small, { color: colors.mutedForeground, marginTop: 10 }]}>{item.field}</Text>
+                  <Text style={[styles.nameValue, { color: colors.foreground }]}>
+                    {item.code === null ? `Сумма ${item.rawTotal}` : `${item.code} · ${item.arcana ?? 'аркан не найден'}`}
+                  </Text>
+                  {item.unsupportedLetters.length > 0 ? (
+                    <Text style={[styles.warning, { color: colors.destructive }]}>Нет кодов в таблице: {item.unsupportedLetters.join(', ')}</Text>
+                  ) : null}
+                  <View style={styles.blocks}>
+                    {blocks.map((b, i) => <BlockView key={`${b.title}-${i}`} block={b} />)}
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        ) : null}
 
         <Text style={[styles.h2, { color: colors.foreground }]}>Как читать этот портрет</Text>
         {context.map((reading) => {
@@ -221,6 +257,7 @@ export default function ReportScreen() {
 
         <Text style={[styles.small, { color: colors.mutedForeground }]}>Добавлено {new Date(person.createdAt).toLocaleDateString('ru-RU')}</Text>
 
+        {exportError ? <Text testID="export-profile-error" accessibilityRole="alert" style={[styles.warning, { color: colors.destructive }]}>{exportError}</Text> : null}
         <Pressable
           testID="export-profile-pdf"
           onPress={exportCard}
@@ -248,6 +285,16 @@ const styles = StyleSheet.create({
   heroMeta: { gap: 3, marginTop: 4 },
   heroMetaText: { color: '#E6D9C4', fontSize: 13 },
   lead: { fontSize: 14, lineHeight: 21, marginVertical: 2 },
+  pill: { minHeight: 42, paddingHorizontal: 16, borderRadius: 21, borderWidth: 1, justifyContent: 'center' },
+  pillText: { fontSize: 14, fontWeight: '600' },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  reading: { borderRadius: 26, borderWidth: 1, padding: 22, gap: 8 },
+  arcana: { fontFamily: serif, fontSize: 32, lineHeight: 38 },
+  rule: { width: 44, height: 2, marginVertical: 8 },
+  readingBlocks: { gap: 26 },
+  detailsWrap: { borderTopWidth: StyleSheet.hairlineWidth, marginTop: 18, paddingTop: 4 },
+  detailsToggle: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  nameToggle: { minHeight: 56, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', alignItems: 'center', marginTop: 8 },
   h2: { fontFamily: serif, fontSize: 24, marginTop: 14 },
   nameGrid: { gap: 10 },
   nameCard: { borderRadius: 18, borderWidth: 1, paddingHorizontal: 15, paddingVertical: 6 },
@@ -258,7 +305,6 @@ const styles = StyleSheet.create({
   blocks: { gap: 18, paddingVertical: 12 },
   group: { borderRadius: 22, borderWidth: 1, padding: 16, gap: 4 },
   groupTitle: { fontFamily: serif, fontSize: 19 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
   chip: { width: 58, height: 62, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center', gap: 1 },
   chipNum: { fontSize: 10.5, fontWeight: '700', letterSpacing: 0.5 },
   chipCode: { fontFamily: serif, fontSize: 22 },

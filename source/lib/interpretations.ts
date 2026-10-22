@@ -33,7 +33,7 @@ function addBlock(blocks: InterpretationBlock[], title: string, text: string | n
 
 export function bookInterpretation(reading: BookReading): InterpretationBlock {
   return {
-    title: reading.title,
+    title: reading.scope === 'arcana' ? 'Психологический образ' : reading.title,
     text: reading.text,
     note: reading.note,
     source: {
@@ -41,6 +41,16 @@ export function bookInterpretation(reading: BookReading): InterpretationBlock {
       label: bookCitation(reading), pdfPages: reading.pdfPages,
     },
   };
+}
+
+export function getPositionReport(number: number, code: number) {
+  const blocks = getPositionInterpretations(number, code);
+  const primary = blocks.filter((block) => block.source?.kind === 'book')
+    .sort((a, b) => Number(b.source?.sourceId === 'magic') - Number(a.source?.sourceId === 'magic'));
+  const normalize = (text: string) => text.toLocaleLowerCase('ru-RU').replace(/ё/g, 'е').replace(/[^а-яa-z0-9]/g, '');
+  const primaryTexts = new Set(primary.map((block) => normalize(block.text)));
+  const details = blocks.filter((block) => block.source?.kind !== 'book' && !primaryTexts.has(normalize(block.text)));
+  return { primary, details };
 }
 
 export function getPositionInterpretations(number: number, code: number): InterpretationBlock[] {
@@ -129,7 +139,7 @@ export function getNameInterpretations(code: number | null): InterpretationBlock
   const blocks: InterpretationBlock[] = [];
   addBlock(blocks, 'Краткое описание аркана', card.summary);
   return [
-    ...blocks,
     ...getBookReadings(-1, code).map(bookInterpretation),
+    ...blocks,
   ];
 }

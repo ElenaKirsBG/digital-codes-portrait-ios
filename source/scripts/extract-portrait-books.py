@@ -3,6 +3,7 @@ from pathlib import Path
 import json
 import re
 import subprocess
+from portrait_aspect_extract import extract_aspects
 
 ROOT = Path(__file__).resolve().parent.parent
 ASSETS = ROOT / "attached_assets"
@@ -27,7 +28,7 @@ sources = [
          coverage="Психологические значения всех 22 Старших арканов. Не полный текст книги."),
     dict(id="portrait", title="Психологический портрет на основе карт Таро",
          author="Алла Алиция Хшановская", year="2011", pageCount=157,
-         coverage="Общие правила интерпретации и назначение позиций. Персональные примеры исключены."),
+         coverage="Правила интерпретации и 99 отдельных толкований миссии, даров, гармонии и восприятия. Персональные примеры исключены."),
     dict(id="mystery", title="Мистерия Таро", author="Алла Хшановска", year="2008", pageCount=121,
          coverage="Введение в повседневные темы и четыре масти Младших арканов.",
          notice="Справочное чтение: Младшие арканы не вычисляются из даты рождения в текущем алгоритме."),
@@ -58,6 +59,7 @@ for index, match in enumerate(matches):
     fragment = joined[match.end():end].rstrip()
     end = match.end() + len(fragment)
     text = clean(fragment)
+    text = re.sub(r"\s*\([^)]*прим\.\s*переводчика\)\s*", " ", text)
     assert 150 < len(text) < 6000, (names[index], len(text))
     start_page = max(n for offset, n in boundaries if offset <= match.end())
     end_page = max(n for offset, n in boundaries if offset < end)
@@ -82,6 +84,8 @@ def add(id, source, title, text, pdf_pages, positions=None, note=None):
 
 # Transcribed general methodological passages, checked against the corresponding
 # text-layer pages. No neighboring personal examples or formulas are imported.
+readings.extend(extract_aspects(next(ASSETS.glob("3_*.pdf")), clean))
+
 add("portrait-path", "portrait", "Как читать жизненный путь",
     "Интерпретация, как правило, начинается с первого уровня горизонтальной линии карт, то есть с позиций 1., 2., 3. И расположенные здесь карты говорят о «Жизненном пути» человека, о том, что будет доминировать в детстве и подростковом возрасте (карта на позиции 1.), в среднем возрасте (позиция 2.), и в третьей части жизни (карта, которую получили, суммировав составляющие года рождения). Эти три позиции дают понимание того, какими человек располагает возможностями и к чему он предрасположен.",
     [36], [1, 2, 3], "Возрастные темы приведены в рамках авторской методики, не как прогноз событий.")

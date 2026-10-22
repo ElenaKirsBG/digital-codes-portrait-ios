@@ -37,7 +37,7 @@ export default function LibraryScreen() {
       keyboardShouldPersistTaps="handled"
     >
       <FadeIn>
-        <Eyebrow>{`${BOOK_READINGS.length} ТЕМА ДЛЯ ЧТЕНИЯ`}</Eyebrow>
+        <Eyebrow>{`ТЕМЫ ДЛЯ ЧТЕНИЯ · ${BOOK_READINGS.length}`}</Eyebrow>
         <Text style={[styles.title, { color: colors.foreground }]}>Библиотека</Text>
         <Text style={[styles.sub, { color: colors.mutedForeground }]}>
           Значения арканов, аспекты портрета и темы для размышления. Найдите то, что интересно вам сейчас.
