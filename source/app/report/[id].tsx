@@ -2,30 +2,33 @@ import { Feather } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { BlockView, Eyebrow, FadeIn, Ornament, SkeletonBlock, pageWidth, serif } from '@/components/ui';
 import { useColors } from '@/hooks/useColors';
 import { useArchive } from '@/lib/people';
 import { calculatePortrait } from '@/lib/calculation';
+import { getReportContext } from '@/lib/books';
 import { getNameInterpretations, getPositionInterpretations } from '@/lib/interpretations';
 import { exportPortraitPdf } from '@/lib/pdf';
 
 const POSITION_GROUPS = [
-  { title: 'Жизненный путь', numbers: [1, 2, 3] },
-  { title: 'Психика и миссия', numbers: [4, 5, 6, 7, 8] },
-  { title: 'Кармические позиции', numbers: [9, 10, 11, 15, 17, 18] },
-  { title: 'Гармония и восприятие', numbers: [12, 13, 14, 30] },
+  { title: 'Жизненный путь', hint: 'Три возраста человека', numbers: [1, 2, 3] },
+  { title: 'Психика и миссия', hint: 'Внутренний мир и предназначение', numbers: [4, 5, 6, 7, 8] },
+  { title: 'Кармические позиции', hint: 'Повторяющиеся задачи', numbers: [9, 10, 11, 15, 17, 18] },
+  { title: 'Гармония и восприятие', hint: 'Равновесие и взгляд со стороны', numbers: [12, 13, 14, 30] },
 ];
 
 export default function ReportScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const colors = useColors();
-  const { people, deletePerson } = useArchive();
+  const { people, ready, deletePerson } = useArchive();
   const [exporting, setExporting] = useState(false);
+  const [selected, setSelected] = useState<number | null>(7);
+  const [openName, setOpenName] = useState<string | null>(null);
   const person = people.find((item) => item.id === id);
   const fullName = person ? `${person.lastName} ${person.firstName} ${person.middleName}` : '';
-  const calculation = person
-    ? person.calculation ?? calculatePortrait(person.birthDate, person)
-    : null;
+  const calculation = person ? person.calculation ?? calculatePortrait(person.birthDate, person) : null;
+  const context = getReportContext();
 
   const exportCard = async () => {
     if (!person) return;
@@ -53,179 +56,222 @@ export default function ReportScreen() {
     ]);
   };
 
+  const header = <Stack.Screen options={{ title: 'Портрет', headerShown: true, headerBackTitle: 'Назад', headerStyle: { backgroundColor: colors.background }, headerTintColor: colors.primary, headerShadowVisible: false }} />;
+
+  if (!ready) {
+    return (
+      <View style={[styles.screen, { backgroundColor: colors.background }]}>
+        {header}
+        <View style={[styles.content, pageWidth, { paddingTop: Platform.OS === 'web' ? 67 : 18 }]} accessibilityLabel="Загружаем архив">
+          <SkeletonBlock height={230} />
+          <SkeletonBlock height={110} />
+          <SkeletonBlock height={160} />
+        </View>
+      </View>
+    );
+  }
+
+  if (!person || !calculation) {
+    return (
+      <View style={[styles.screen, styles.notFound, { backgroundColor: colors.background }]}>
+        {header}
+        <Feather name="file-minus" size={28} color={colors.mutedForeground} />
+        <Text style={[styles.notFoundText, { color: colors.foreground }]}>Запись не найдена</Text>
+        <Pressable onPress={() => router.replace('/archive')}>
+          <Text style={[styles.link, { color: colors.primary }]}>Вернуться в архив</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <Stack.Screen options={{ title: 'Карточка', headerShown: true, headerBackTitle: 'Назад' }} />
-      {person ? (
-        <ScrollView contentContainerStyle={[styles.content, { paddingTop: Platform.OS === 'web' ? 67 : 18, paddingBottom: 40 }]}>
-          <View style={[styles.profileCard, { backgroundColor: colors.primary }]}>
-            <View style={styles.orbit}><View style={styles.orbitInner} /></View>
-            <Text style={styles.profileEyebrow}>ПЕРСОНАЛЬНАЯ КАРТОЧКА</Text>
-            <Text style={styles.profileName}>{fullName}</Text>
-            <View style={styles.birthPill}>
-              <Feather name="calendar" size={15} color="#F2E9D8" />
-              <Text style={styles.birthText}>{new Date(`${person.birthDate}T00:00:00`).toLocaleDateString('ru-RU')}</Text>
+      {header}
+      <ScrollView contentContainerStyle={[styles.content, pageWidth, { paddingTop: Platform.OS === 'web' ? 67 : 12, paddingBottom: 48 }]}>
+        <FadeIn>
+          <View style={[styles.hero, { backgroundColor: colors.wineDeep }]}>
+            <View style={styles.orn}><Ornament size={220} color="#FBF3E438" accent={colors.gold} /></View>
+            <Eyebrow>ПЕРСОНАЛЬНЫЙ ПОРТРЕТ</Eyebrow>
+            <Text style={styles.heroName}>{fullName}</Text>
+            <View style={styles.heroMeta}>
+              <Text style={styles.heroMetaText}>Рождение · {new Date(`${person.birthDate}T00:00:00`).toLocaleDateString('ru-RU')}</Text>
+              <Text style={styles.heroMetaText}>Возрастная граница · {calculation.ageBoundary} лет</Text>
             </View>
           </View>
+        </FadeIn>
 
-          <View style={[styles.section, { backgroundColor: colors.card }]}>
-            <View style={[styles.statusIcon, { backgroundColor: colors.accent }]}>
-              <Feather name="layers" size={18} color={colors.primary} />
-            </View>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Расчётный портрет</Text>
-            <Text style={[styles.body, { color: colors.mutedForeground }]}>
-              Коды и трактовки перенесены из вашей расчётной таблицы.
-            </Text>
-            <View style={styles.nameCodeList}>
-              {calculation?.nameCodes.map((item) => (
-                <View key={item.field} style={[styles.nameCode, { backgroundColor: colors.background }]}>
-                  <Text style={[styles.nameCodeLabel, { color: colors.mutedForeground }]}>{item.field}</Text>
-                  <Text style={[styles.nameCodeValue, { color: colors.foreground }]}>
-                    {item.code === null ? `Сумма ${item.rawTotal}` : `${item.code} · ${item.arcana ?? 'аркан не найден'}`}
-                  </Text>
-                  {item.unsupportedLetters.length > 0 ? (
-                    <Text style={[styles.warning, { color: colors.destructive }]}>
-                      Нет кодов в таблице: {item.unsupportedLetters.join(', ')}
+        <Text style={[styles.lead, { color: colors.mutedForeground }]}>
+          Выберите позицию на карте — трактовка раскроется рядом. Источник каждого фрагмента указан под текстом.
+        </Text>
+
+        <Text style={[styles.h2, { color: colors.foreground }]}>Коды имени</Text>
+        <View style={styles.nameGrid}>
+          {calculation.nameCodes.map((item) => {
+            const open = openName === item.field;
+            const blocks = open ? getNameInterpretations(item.code) : [];
+            return (
+              <View key={item.field} style={[styles.nameCard, { backgroundColor: colors.card, borderColor: open ? colors.gold : colors.border }]}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: open }}
+                  onPress={() => setOpenName(open ? null : item.field)}
+                  style={styles.nameHead}
+                >
+                  <View style={{ flex: 1, gap: 3 }}>
+                    <Text style={[styles.small, { color: colors.mutedForeground }]}>{item.field}</Text>
+                    <Text style={[styles.nameValue, { color: colors.foreground }]}>
+                      {item.code === null ? `Сумма ${item.rawTotal}` : `${item.code} · ${item.arcana ?? 'аркан не найден'}`}
                     </Text>
-                  ) : null}
-                  {getNameInterpretations(item.code).map((block) => (
-                    <View key={block.title} style={styles.nameInterpretation}>
-                      <Text style={[styles.interpretationTitle, { color: colors.foreground }]}>{block.title}</Text>
-                      <Text style={[styles.interpretationBody, { color: colors.mutedForeground }]}>{block.text}</Text>
-                    </View>
-                  ))}
-                </View>
-              ))}
-            </View>
-          </View>
+                  </View>
+                  <Feather name={open ? 'chevron-up' : 'chevron-down'} size={18} color={colors.mutedForeground} />
+                </Pressable>
+                {item.unsupportedLetters.length > 0 ? (
+                  <Text style={[styles.warning, { color: colors.destructive }]}>Нет кодов в таблице: {item.unsupportedLetters.join(', ')}</Text>
+                ) : null}
+                {open ? (
+                  <View style={styles.blocks}>
+                    {blocks.length ? blocks.map((b, i) => <BlockView key={`${b.title}-${i}`} block={b} />) : (
+                      <Text style={[styles.small, { color: colors.mutedForeground }]}>Для этого кода трактовки нет в таблице.</Text>
+                    )}
+                  </View>
+                ) : null}
+              </View>
+            );
+          })}
+        </View>
 
-          {POSITION_GROUPS.map((group) => (
-            <View key={group.title} style={[styles.section, { backgroundColor: colors.card }]}>
+        <Text style={[styles.h2, { color: colors.foreground }]}>Карта позиций</Text>
+        {POSITION_GROUPS.map((group) => {
+          const sel = selected !== null && group.numbers.includes(selected)
+            ? calculation.positions.find((p) => p.number === selected)
+            : undefined;
+          return (
+            <View key={group.title} style={[styles.group, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Text style={[styles.groupTitle, { color: colors.foreground }]}>{group.title}</Text>
-              <View style={styles.positionList}>
+              <Text style={[styles.small, { color: colors.mutedForeground }]}>{group.hint}</Text>
+              <View style={styles.chips}>
                 {group.numbers.map((number) => {
-                  const position = calculation?.positions.find((item) => item.number === number);
-                  if (!position) return null;
-                  const interpretations = getPositionInterpretations(position.number, position.code);
+                  const p = calculation.positions.find((x) => x.number === number);
+                  if (!p) return null;
+                  const on = selected === number;
                   return (
-                    <View key={position.number} style={[styles.positionCard, { borderColor: colors.border }]}>
-                      <View style={styles.positionRow}>
-                        <View style={[styles.positionBadge, { backgroundColor: colors.accent }]}>
-                          <Text style={[styles.positionNumber, { color: colors.primary }]}>{position.number}</Text>
-                        </View>
-                        <View style={styles.positionInfo}>
-                          <Text style={[styles.positionLabel, { color: colors.mutedForeground }]}>{position.label}</Text>
-                          <Text style={[styles.positionValue, { color: colors.foreground }]}>
-                            {position.code}{position.arcana ? ` · ${position.arcana}` : ' · аркан не найден в таблице'}
-                          </Text>
-                        </View>
-                      </View>
-                      {interpretations.map((block) => (
-                        <View key={block.title} style={styles.interpretationBlock}>
-                          <Text style={[styles.interpretationTitle, { color: colors.foreground }]}>{block.title}</Text>
-                          <Text style={[styles.interpretationBody, { color: colors.mutedForeground }]}>{block.text}</Text>
-                        </View>
-                      ))}
-                    </View>
+                    <Pressable
+                      key={number}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: on }}
+                      accessibilityLabel={`Позиция ${number}, ${p.label}, код ${p.code}`}
+                      onPress={() => setSelected(on ? null : number)}
+                      style={({ pressed }) => [
+                        styles.chip,
+                        { backgroundColor: on ? colors.primary : colors.background, borderColor: on ? colors.primary : colors.border, transform: [{ scale: pressed ? 0.95 : 1 }] },
+                      ]}
+                    >
+                      <Text style={[styles.chipNum, { color: on ? colors.goldSoft : colors.mutedForeground }]}>{number}</Text>
+                      <Text style={[styles.chipCode, { color: on ? colors.primaryForeground : colors.foreground }]}>{p.code}</Text>
+                    </Pressable>
                   );
                 })}
               </View>
+              {sel ? (
+                <FadeIn>
+                  <View style={[styles.detail, { borderTopColor: colors.border }]}>
+                    <Text style={[styles.small, { color: colors.gold, fontWeight: '700' }]}>ПОЗИЦИЯ {sel.number}</Text>
+                    <Text style={[styles.detailTitle, { color: colors.foreground }]}>{sel.label}</Text>
+                    <Text style={[styles.detailArcana, { color: colors.primary }]}>
+                      {sel.code}{sel.arcana ? ` · ${sel.arcana}` : ' · аркан не найден в таблице'}
+                    </Text>
+                    <View style={styles.blocks}>
+                      {getPositionInterpretations(sel.number, sel.code).map((b, i) => <BlockView key={`${b.title}-${i}`} block={b} />)}
+                    </View>
+                  </View>
+                </FadeIn>
+              ) : null}
             </View>
-          ))}
+          );
+        })}
 
-          {calculation ? (
-            <View style={[styles.section, { backgroundColor: colors.card }]}>
-              <Text style={[styles.groupTitle, { color: colors.foreground }]}>Возрастная граница</Text>
-              <Text style={[styles.body, { color: colors.mutedForeground }]}>
-                {calculation.ageBoundary} лет · расчёт по формуле из таблицы
-              </Text>
-            </View>
-          ) : null}
+        <Text style={[styles.h2, { color: colors.foreground }]}>Как читать этот портрет</Text>
+        {context.map((reading) => {
+          const warn = reading.id === 'health-boundaries';
+          return (
+            <Pressable
+              key={reading.id}
+              accessibilityRole="link"
+              onPress={() => router.push(`/reading/${reading.id}`)}
+              style={({ pressed }) => [styles.ctx, { backgroundColor: warn ? colors.destructive + '12' : colors.accent, opacity: pressed ? 0.85 : 1 }]}
+            >
+              <Feather name={warn ? 'alert-triangle' : 'compass'} size={17} color={warn ? colors.destructive : colors.primary} />
+              <View style={{ flex: 1, gap: 4 }}>
+                <Text style={[styles.ctxTitle, { color: colors.foreground }]}>{reading.title}</Text>
+                <Text numberOfLines={4} style={[styles.ctxText, { color: colors.foreground }]}>{reading.text}</Text>
+                <Text style={[styles.small, { color: colors.primary, fontWeight: '700' }]}>
+                  Читать подробнее
+                </Text>
+              </View>
+            </Pressable>
+          );
+        })}
 
-          <View style={[styles.disclaimerCard, { backgroundColor: colors.accent }]}>
-            <Feather name="info" size={17} color={colors.primary} />
-            <Text style={[styles.disclaimerBody, { color: colors.foreground }]}>
-              Трактовки воспроизведены по вашей расчётной таблице. Это авторская символическая методика, а не медицинская диагностика или стандартизированное психологическое заключение.
-            </Text>
-          </View>
-
-          <Text style={[styles.created, { color: colors.mutedForeground }]}>
-            Добавлено {new Date(person.createdAt).toLocaleDateString('ru-RU')}
+        <View style={[styles.ctx, { backgroundColor: colors.muted }]}>
+          <Feather name="info" size={17} color={colors.primary} />
+          <Text style={[styles.ctxText, { color: colors.foreground, flex: 1 }]}>
+            Это символическая методика для размышления о себе, а не медицинская диагностика и не стандартизированное психологическое заключение.
           </Text>
-
-          <Pressable
-            testID="export-profile-pdf"
-            onPress={exportCard}
-            disabled={exporting}
-            style={({ pressed }) => [styles.shareButton, { backgroundColor: colors.primary, borderColor: colors.primary, opacity: pressed || exporting ? 0.7 : 1 }]}
-          >
-            {exporting ? <ActivityIndicator size="small" color={colors.primaryForeground} /> : <Feather name="share-2" size={17} color={colors.primaryForeground} />}
-            <Text style={[styles.shareText, { color: colors.primaryForeground }]}>
-              {exporting ? 'Готовим PDF…' : 'Экспортировать отчёт в PDF'}
-            </Text>
-          </Pressable>
-          <Text style={[styles.disclaimer, { color: colors.mutedForeground }]}>
-            PDF можно сохранить или отправить через доступное приложение.
-          </Text>
-          <Pressable onPress={remove} style={styles.deleteButton}>
-            <Feather name="trash-2" size={15} color={colors.destructive} />
-            <Text style={[styles.deleteText, { color: colors.destructive }]}>Удалить из архива</Text>
-          </Pressable>
-        </ScrollView>
-      ) : (
-        <View style={styles.notFound}>
-          <Feather name="file-minus" size={28} color={colors.mutedForeground} />
-          <Text style={[styles.notFoundText, { color: colors.foreground }]}>Запись не найдена</Text>
-          <Pressable onPress={() => router.replace('/archive')}>
-            <Text style={[styles.backText, { color: colors.primary }]}>Вернуться в архив</Text>
-          </Pressable>
         </View>
-      )}
+
+        <Text style={[styles.small, { color: colors.mutedForeground }]}>Добавлено {new Date(person.createdAt).toLocaleDateString('ru-RU')}</Text>
+
+        <Pressable
+          testID="export-profile-pdf"
+          onPress={exportCard}
+          disabled={exporting}
+          style={({ pressed }) => [styles.share, { backgroundColor: colors.primary, opacity: pressed || exporting ? 0.75 : 1 }]}
+        >
+          {exporting ? <ActivityIndicator size="small" color={colors.primaryForeground} /> : <Feather name="share-2" size={17} color={colors.primaryForeground} />}
+          <Text style={[styles.shareText, { color: colors.primaryForeground }]}>{exporting ? 'Готовим PDF…' : 'Экспортировать отчёт в PDF'}</Text>
+        </Pressable>
+        <Pressable onPress={remove} style={styles.del}>
+          <Feather name="trash-2" size={15} color={colors.destructive} />
+          <Text style={[styles.link, { color: colors.destructive }]}>Удалить из архива</Text>
+        </Pressable>
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  content: { paddingHorizontal: 21, gap: 16 },
-  profileCard: { minHeight: 216, borderRadius: 24, padding: 22, overflow: 'hidden', justifyContent: 'flex-end' },
-  orbit: { position: 'absolute', right: -18, top: -39, width: 175, height: 175, borderWidth: 1, borderColor: '#FFFFFF40', borderRadius: 100, alignItems: 'center', justifyContent: 'center' },
-  orbitInner: { width: 112, height: 112, borderWidth: 1, borderColor: '#FFFFFF55', borderRadius: 100 },
-  profileEyebrow: { color: '#E1E8E1', letterSpacing: 1.5, fontSize: 10, fontWeight: '700', marginBottom: 10 },
-  profileName: { color: '#FFFFFF', fontSize: 24, lineHeight: 30, fontWeight: '700', maxWidth: 330 },
-  birthPill: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#FFFFFF22', borderRadius: 20, paddingHorizontal: 11, paddingVertical: 7, marginTop: 15 },
-  birthText: { color: '#F2E9D8', fontSize: 13, fontWeight: '600' },
-  section: { borderRadius: 20, padding: 18, gap: 10 },
-  statusIcon: { width: 39, height: 39, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-  sectionTitle: { fontSize: 17, fontWeight: '700' },
-  body: { fontSize: 13, lineHeight: 20 },
-  nameCodeList: { gap: 7, marginTop: 2 },
-  nameCode: { borderRadius: 13, paddingHorizontal: 12, paddingVertical: 10, gap: 3 },
-  nameCodeLabel: { fontSize: 11, fontWeight: '600' },
-  nameCodeValue: { fontSize: 13, fontWeight: '700' },
-  warning: { fontSize: 11, lineHeight: 16, marginTop: 3 },
-  nameInterpretation: { gap: 4, marginTop: 7 },
-  groupTitle: { fontSize: 16, fontWeight: '700' },
-  positionList: { gap: 8 },
-  positionCard: { borderBottomWidth: StyleSheet.hairlineWidth, paddingBottom: 14, gap: 10 },
-  positionRow: { minHeight: 55, flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 7 },
-  positionBadge: { width: 34, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  positionNumber: { fontSize: 12, fontWeight: '700' },
-  positionInfo: { flex: 1, gap: 3 },
-  positionLabel: { fontSize: 11, lineHeight: 15 },
-  positionValue: { fontSize: 13, fontWeight: '700' },
-  interpretationBlock: { gap: 5, paddingLeft: 45 },
-  interpretationTitle: { fontSize: 12, fontWeight: '700', lineHeight: 17 },
-  interpretationBody: { fontSize: 12, lineHeight: 18 },
-  disclaimerCard: { borderRadius: 17, padding: 14, flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  disclaimerBody: { flex: 1, fontSize: 11, lineHeight: 17 },
-  created: { fontSize: 12 },
-  shareButton: { minHeight: 49, borderWidth: 1, borderRadius: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9 },
-  shareText: { fontSize: 14, fontWeight: '700' },
-  disclaimer: { fontSize: 11, lineHeight: 16, textAlign: 'center', paddingHorizontal: 13, marginTop: -8 },
-  deleteButton: { alignSelf: 'center', flexDirection: 'row', gap: 7, alignItems: 'center', padding: 10, marginTop: 2 },
-  deleteText: { fontSize: 13, fontWeight: '600' },
-  notFound: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 13 },
-  notFoundText: { fontSize: 16, fontWeight: '700' },
-  backText: { fontSize: 14, fontWeight: '600' },
+  content: { paddingHorizontal: 20, gap: 14 },
+  hero: { minHeight: 250, borderRadius: 28, padding: 24, overflow: 'hidden', justifyContent: 'flex-end', gap: 10 },
+  orn: { position: 'absolute', right: -50, top: -50 },
+  heroName: { fontFamily: serif, color: '#FBF3E4', fontSize: 31, lineHeight: 37, maxWidth: 420 },
+  heroMeta: { gap: 3, marginTop: 4 },
+  heroMetaText: { color: '#E6D9C4', fontSize: 13 },
+  lead: { fontSize: 14, lineHeight: 21, marginVertical: 2 },
+  h2: { fontFamily: serif, fontSize: 24, marginTop: 14 },
+  nameGrid: { gap: 10 },
+  nameCard: { borderRadius: 18, borderWidth: 1, paddingHorizontal: 15, paddingVertical: 6 },
+  nameHead: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  nameValue: { fontFamily: serif, fontSize: 17 },
+  small: { fontSize: 12, lineHeight: 17 },
+  warning: { fontSize: 11.5, lineHeight: 16, marginBottom: 6 },
+  blocks: { gap: 18, paddingVertical: 12 },
+  group: { borderRadius: 22, borderWidth: 1, padding: 16, gap: 4 },
+  groupTitle: { fontFamily: serif, fontSize: 19 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
+  chip: { width: 58, height: 62, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center', gap: 1 },
+  chipNum: { fontSize: 10.5, fontWeight: '700', letterSpacing: 0.5 },
+  chipCode: { fontFamily: serif, fontSize: 22 },
+  detail: { borderTopWidth: StyleSheet.hairlineWidth, marginTop: 14, paddingTop: 14, gap: 4 },
+  detailTitle: { fontFamily: serif, fontSize: 22, lineHeight: 28 },
+  detailArcana: { fontSize: 14, fontWeight: '700' },
+  ctx: { borderRadius: 20, padding: 16, flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
+  ctxTitle: { fontFamily: serif, fontSize: 17 },
+  ctxText: { fontFamily: serif, fontSize: 14, lineHeight: 22 },
+  share: { minHeight: 52, borderRadius: 26, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, marginTop: 4 },
+  shareText: { fontSize: 14.5, fontWeight: '700' },
+  del: { alignSelf: 'center', flexDirection: 'row', gap: 7, alignItems: 'center', padding: 10 },
+  link: { fontSize: 13.5, fontWeight: '700' },
+  notFound: { alignItems: 'center', justifyContent: 'center', gap: 13 },
+  notFoundText: { fontFamily: serif, fontSize: 19 },
 });

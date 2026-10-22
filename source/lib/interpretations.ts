@@ -1,9 +1,19 @@
 import { INTERPRETATION_LIBRARY } from './interpretation-data.ts';
 import type { InterpretationSection } from './interpretation-data.ts';
+import { bookCitation, getBookReadings } from './books.ts';
+import type { BookReading } from './books.ts';
 
 export type InterpretationBlock = {
   title: string;
   text: string;
+  note?: string;
+  source?: {
+    kind: 'workbook' | 'book';
+    sourceId: string;
+    label: string;
+    readingId?: string;
+    pdfPages?: number[];
+  };
 };
 
 const sectionTitles: Record<InterpretationSection, string> = {
@@ -15,7 +25,22 @@ const sectionTitles: Record<InterpretationSection, string> = {
 };
 
 function addBlock(blocks: InterpretationBlock[], title: string, text: string | null | undefined) {
-  if (text?.trim()) blocks.push({ title, text: text.trim() });
+  if (text?.trim()) blocks.push({
+    title, text: text.trim(),
+    source: { kind: 'workbook', sourceId: 'workbook', label: 'Авторская таблица Excel' },
+  });
+}
+
+export function bookInterpretation(reading: BookReading): InterpretationBlock {
+  return {
+    title: reading.title,
+    text: reading.text,
+    note: reading.note,
+    source: {
+      kind: 'book', sourceId: reading.sourceId, readingId: reading.id,
+      label: bookCitation(reading), pdfPages: reading.pdfPages,
+    },
+  };
 }
 
 export function getPositionInterpretations(number: number, code: number): InterpretationBlock[] {
@@ -94,12 +119,17 @@ export function getPositionInterpretations(number: number, code: number): Interp
     addBlock(blocks, 'Дополнительное описание', card.advice ?? card.negative);
   }
 
-  return blocks;
+  return [...blocks, ...getBookReadings(number, code).map(bookInterpretation)];
 }
 
 export function getNameInterpretations(code: number | null): InterpretationBlock[] {
   if (code === null) return [];
   const card = INTERPRETATION_LIBRARY.cards[code];
   if (!card?.summary) return [];
-  return [{ title: 'Краткое описание аркана', text: card.summary.trim() }];
+  const blocks: InterpretationBlock[] = [];
+  addBlock(blocks, 'Краткое описание аркана', card.summary);
+  return [
+    ...blocks,
+    ...getBookReadings(-1, code).map(bookInterpretation),
+  ];
 }

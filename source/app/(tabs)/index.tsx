@@ -12,6 +12,8 @@ import {
   View,
 } from 'react-native';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
+import { Avatar, Eyebrow, FadeIn, Ornament, SkeletonBlock, pageWidth, serif, topInset } from '@/components/ui';
+import { BOOK_READINGS } from '@/lib/books';
 import { useColors } from '@/hooks/useColors';
 import { useArchive } from '@/lib/people';
 import { normalizeBirthDate } from '@/lib/birth-date';
@@ -73,70 +75,59 @@ export default function HomeScreen() {
   };
 
   const recent = people.slice(0, 3);
-  const surface = colors.card;
-  const pageTop = Platform.OS === 'web' ? 67 : 0;
+  const spotlight = BOOK_READINGS[Math.floor(Date.now() / 86400000) % BOOK_READINGS.length];
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <KeyboardAwareScrollViewCompat
-        contentContainerStyle={[styles.content, { paddingTop: pageTop + 22, paddingBottom: 120 }]}
+        contentContainerStyle={[styles.content, pageWidth, { paddingTop: topInset + 22, paddingBottom: 130 }]}
         keyboardShouldPersistTaps="handled"
         bottomOffset={40}
       >
-        <View style={styles.topLine}>
-          <View>
-            <Text style={[styles.eyebrow, { color: colors.primary }]}>ВАША МЕТОДИКА</Text>
-            <Text style={[styles.title, { color: colors.foreground }]}>Цифровой портрет</Text>
+        <FadeIn>
+          <View style={[styles.intro, { backgroundColor: colors.wineDeep }]}>
+            <View style={styles.orn}><Ornament size={230} color="#FBF3E440" accent={colors.gold} /></View>
+            <Eyebrow>ЛИЧНОЕ ЧИТАЛЬНОЕ ПРОСТРАНСТВО</Eyebrow>
+            <Text style={styles.introTitle}>Символический портрет</Text>
+            <Text style={styles.introBody}>
+              Введите имя и дату рождения, чтобы познакомиться с ключевыми темами портрета. Раскрывайте каждый аспект и читайте подробный разбор.
+            </Text>
+            <Pressable
+              testID="add-person"
+              accessibilityRole="button"
+              onPress={() => { setFormError(null); setModalOpen(true); }}
+              style={({ pressed }) => [styles.primaryButton, { backgroundColor: colors.goldSoft, transform: [{ scale: pressed ? 0.97 : 1 }] }]}
+            >
+              <Feather name="plus" size={18} color={colors.wineDeep} />
+              <Text style={[styles.primaryButtonText, { color: colors.wineDeep }]}>Новый портрет</Text>
+            </Pressable>
           </View>
-          <View style={[styles.brandMark, { backgroundColor: colors.primary }]}>
-            <Feather name="aperture" size={21} color={colors.primaryForeground} />
-          </View>
-        </View>
-
-        <View style={[styles.intro, { backgroundColor: colors.primary }]}>
-          <View style={styles.introOrb}><View style={styles.introOrbInner} /></View>
-          <Text style={styles.introLabel}>Персональный разбор</Text>
-          <Text style={styles.introTitle}>Начните с даты рождения</Text>
-          <Text style={styles.introBody}>
-            Введите ФИО и дату рождения — коды по вашей таблице появятся в отчёте и сохранятся в архиве.
-          </Text>
-          <Pressable
-            testID="add-person"
-            accessibilityRole="button"
-            onPress={() => { setFormError(null); setModalOpen(true); }}
-            style={({ pressed }) => [styles.primaryButton, { opacity: pressed ? 0.82 : 1 }]}
-          >
-            <Feather name="plus" size={18} color={colors.primary} />
-            <Text style={[styles.primaryButtonText, { color: colors.primary }]}>Новый портрет</Text>
-          </Pressable>
-        </View>
+        </FadeIn>
 
         {storageError ? (
-          <View style={[styles.notice, { backgroundColor: colors.destructive + '12' }]}>
+          <View style={[styles.notice, { backgroundColor: colors.destructive + '14' }]}>
             <Feather name="alert-circle" size={18} color={colors.destructive} />
             <Text style={[styles.noticeText, { color: colors.destructive }]}>{storageError}</Text>
           </View>
         ) : null}
 
-        <View style={styles.sectionHeading}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Недавние записи</Text>
-          <Pressable onPress={() => router.push('/archive')} accessibilityRole="button">
-            <Text style={[styles.link, { color: colors.primary }]}>Весь архив</Text>
-          </Pressable>
-        </View>
+        <FadeIn delay={90}>
+          <View style={styles.sectionHeading}>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Недавние записи</Text>
+            <Pressable onPress={() => router.push('/archive')} accessibilityRole="button" hitSlop={8}>
+              <Text style={[styles.link, { color: colors.primary }]}>Весь архив</Text>
+            </Pressable>
+          </View>
+        </FadeIn>
 
         {!ready ? (
-          <View style={[styles.emptyCard, { backgroundColor: surface }]}>
-            <Text style={[styles.muted, { color: colors.mutedForeground }]}>Загружаем архив…</Text>
-          </View>
+          <SkeletonBlock height={72} />
         ) : recent.length === 0 ? (
-          <View style={[styles.emptyCard, { backgroundColor: surface }]}>
-            <View style={[styles.emptyIcon, { backgroundColor: colors.accent }]}>
-              <Feather name="book-open" size={20} color={colors.primary} />
-            </View>
-            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Здесь будет ваш архив</Text>
+          <View style={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Feather name="feather" size={22} color={colors.gold} />
+            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Пока ни одного портрета</Text>
             <Text style={[styles.muted, { color: colors.mutedForeground }]}>
-              Сохранённые люди и портреты останутся на этом устройстве.
+              Сохранённые люди остаются только на этом устройстве.
             </Text>
           </View>
         ) : (
@@ -145,16 +136,9 @@ export default function HomeScreen() {
               <Pressable
                 key={person.id}
                 onPress={() => router.push(`/report/${person.id}`)}
-                style={({ pressed }) => [
-                  styles.personRow,
-                  { backgroundColor: surface, opacity: pressed ? 0.8 : 1 },
-                ]}
+                style={({ pressed }) => [styles.personRow, { backgroundColor: colors.card, borderColor: colors.border, transform: [{ scale: pressed ? 0.985 : 1 }] }]}
               >
-                <View style={[styles.avatar, { backgroundColor: colors.accent }]}>
-                  <Text style={[styles.avatarText, { color: colors.primary }]}>
-                    {person.firstName.slice(0, 1).toLocaleUpperCase('ru-RU')}
-                  </Text>
-                </View>
+                <Avatar name={person.firstName} />
                 <View style={styles.personInfo}>
                   <Text numberOfLines={1} style={[styles.personName, { color: colors.foreground }]}>
                     {person.lastName} {person.firstName} {person.middleName}
@@ -168,6 +152,23 @@ export default function HomeScreen() {
             ))}
           </View>
         )}
+
+        {spotlight ? (
+          <FadeIn delay={160}>
+            <Pressable
+              accessibilityRole="link"
+              onPress={() => router.push(`/reading/${spotlight.id}`)}
+              style={({ pressed }) => [styles.spot, { backgroundColor: colors.accent, opacity: pressed ? 0.85 : 1 }]}
+            >
+              <Eyebrow color={colors.primary}>ИЗ БИБЛИОТЕКИ</Eyebrow>
+              <Text style={[styles.spotTitle, { color: colors.foreground }]}>{spotlight.title}</Text>
+              <Text numberOfLines={3} style={[styles.spotText, { color: colors.foreground }]}>{spotlight.text}</Text>
+              <Text style={[styles.spotSrc, { color: colors.primary }]}>
+                Открыть и прочитать
+              </Text>
+            </Pressable>
+          </FadeIn>
+        ) : null}
       </KeyboardAwareScrollViewCompat>
 
       <Modal visible={modalOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setModalOpen(false)}>
@@ -179,8 +180,8 @@ export default function HomeScreen() {
           >
             <View style={styles.modalHeader}>
               <View>
-                <Text style={[styles.eyebrow, { color: colors.primary }]}>НОВАЯ ЗАПИСЬ</Text>
-                <Text style={[styles.modalTitle, { color: colors.foreground }]}>Данные человека</Text>
+                <Eyebrow>НОВАЯ ЗАПИСЬ</Eyebrow>
+                <Text style={[styles.modalTitle, { fontFamily: serif }, { color: colors.foreground }]}>Данные человека</Text>
               </View>
               <Pressable onPress={() => setModalOpen(false)} accessibilityLabel="Закрыть" style={[styles.closeButton, { backgroundColor: colors.card }]}>
                 <Feather name="x" size={20} color={colors.foreground} />
@@ -258,33 +259,30 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { paddingHorizontal: 22, gap: 22 },
   topLine: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  eyebrow: { fontSize: 10, letterSpacing: 1.7, fontWeight: '700', marginBottom: 7 },
-  title: { fontSize: 27, fontWeight: '700', letterSpacing: -0.7 },
   brandMark: { width: 44, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  intro: { minHeight: 250, borderRadius: 26, padding: 22, overflow: 'hidden', justifyContent: 'flex-end' },
-  introOrb: { position: 'absolute', right: -9, top: 1, width: 150, height: 150, borderRadius: 100, borderWidth: 1, borderColor: '#FFFFFF40', alignItems: 'center', justifyContent: 'center' },
-  introOrbInner: { width: 92, height: 92, borderRadius: 60, borderWidth: 1, borderColor: '#FFFFFF55' },
-  introLabel: { color: '#E6ECE5', fontSize: 12, marginBottom: 10 },
-  introTitle: { color: '#FFFFFF', fontSize: 23, lineHeight: 29, fontWeight: '700', maxWidth: 250 },
-  introBody: { color: '#E1E8E1', fontSize: 14, lineHeight: 20, marginTop: 9, marginBottom: 20, maxWidth: 320 },
-  primaryButton: { minHeight: 49, backgroundColor: '#F2E9D8', paddingHorizontal: 17, borderRadius: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', alignSelf: 'flex-start', gap: 9 },
-  primaryButtonText: { fontWeight: '700', fontSize: 14 },
+  intro: { minHeight: 330, borderRadius: 28, padding: 24, overflow: 'hidden', justifyContent: 'flex-end', gap: 10 },
+  orn: { position: 'absolute', right: -50, top: -40 },
+  introTitle: { fontFamily: serif, color: '#FBF3E4', fontSize: 36, lineHeight: 41, letterSpacing: -0.6, maxWidth: 300 },
+  introBody: { color: '#E6D9C4', fontSize: 14.5, lineHeight: 22, maxWidth: 420, marginBottom: 10 },
+  primaryButton: { minHeight: 50, paddingHorizontal: 20, borderRadius: 25, flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 9 },
+  primaryButtonText: { fontWeight: '700', fontSize: 14.5 },
   sectionHeading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  sectionTitle: { fontSize: 18, fontWeight: '700' },
-  link: { fontSize: 13, fontWeight: '600' },
-  emptyCard: { borderRadius: 20, padding: 20, alignItems: 'center', gap: 9 },
-  emptyIcon: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-  emptyTitle: { fontSize: 15, fontWeight: '700' },
+  sectionTitle: { fontFamily: serif, fontSize: 22 },
+  link: { fontSize: 13, fontWeight: '700' },
+  emptyCard: { borderRadius: 20, padding: 22, alignItems: 'center', gap: 8, borderWidth: 1, borderStyle: 'dashed' },
+  emptyTitle: { fontFamily: serif, fontSize: 17 },
   muted: { fontSize: 13, textAlign: 'center', lineHeight: 19 },
-  recentList: { gap: 9 },
-  personRow: { borderRadius: 17, paddingHorizontal: 13, paddingVertical: 13, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  avatar: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontSize: 17, fontWeight: '700' },
+  recentList: { gap: 10 },
+  personRow: { borderRadius: 20, borderWidth: 1, padding: 13, flexDirection: 'row', alignItems: 'center', gap: 13 },
   personInfo: { flex: 1, gap: 4 },
-  personName: { fontSize: 13, fontWeight: '600' },
-  personDate: { fontSize: 12 },
+  personName: { fontSize: 14.5, fontWeight: '600' },
+  personDate: { fontSize: 12.5 },
   notice: { borderRadius: 14, padding: 12, flexDirection: 'row', gap: 8 },
   noticeText: { flex: 1, fontSize: 12, lineHeight: 17 },
+  spot: { borderRadius: 24, padding: 20, gap: 8, marginTop: 4 },
+  spotTitle: { fontFamily: serif, fontSize: 21, lineHeight: 27 },
+  spotText: { fontFamily: serif, fontSize: 14.5, lineHeight: 23, opacity: 0.85 },
+  spotSrc: { fontSize: 12.5, fontWeight: '700', marginTop: 4 },
   modalScreen: { flex: 1 },
   modalContent: { paddingHorizontal: 23, paddingTop: 24, gap: 10, flexGrow: 1 },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 15 },

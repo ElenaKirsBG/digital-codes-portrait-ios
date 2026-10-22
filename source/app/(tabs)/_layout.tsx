@@ -21,6 +21,10 @@ function NativeTabLayout() {
         />
         <NativeTabs.Trigger.Label>Главная</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="library">
+        <NativeTabs.Trigger.Icon sf={{ default: 'books.vertical', selected: 'books.vertical.fill' }} />
+        <NativeTabs.Trigger.Label>Библиотека</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="archive">
         <NativeTabs.Trigger.Icon sf={{ default: 'archivebox', selected: 'archivebox.fill' }} />
         <NativeTabs.Trigger.Label>Архив</NativeTabs.Trigger.Label>
@@ -81,6 +85,13 @@ function ClassicTabLayout() {
             ) : (
               <Feather name="home" size={22} color={color} />
             ),
+        }}
+      />
+      <Tabs.Screen
+        name="library"
+        options={{
+          title: 'Библиотека',
+          tabBarIcon: ({ color }) => <Feather name="book-open" size={21} color={color} />,
         }}
       />
       <Tabs.Screen

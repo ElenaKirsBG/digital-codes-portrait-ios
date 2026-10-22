@@ -2,6 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import { Alert, FlatList, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Avatar, Eyebrow, SkeletonBlock, pageWidth, serif } from '@/components/ui';
 import { useColors } from '@/hooks/useColors';
 import { Person, useArchive } from '@/lib/people';
 
@@ -33,9 +34,9 @@ export default function ArchiveScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { paddingTop: Platform.OS === 'web' ? 67 : 22 }]}>
-        <Text style={[styles.eyebrow, { color: colors.primary }]}>СОХРАНЁННЫЕ ЗАПИСИ</Text>
-        <Text style={[styles.title, { color: colors.foreground }]}>Архив</Text>
+      <View style={[styles.header, pageWidth, { paddingTop: Platform.OS === 'web' ? 67 : 22 }]}>
+        <Eyebrow>СОХРАНЁННЫЕ ЗАПИСИ</Eyebrow>
+        <Text style={[styles.title, { color: colors.foreground, fontFamily: serif }]}>Архив</Text>
         <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
           {people.length} {people.length === 1 ? 'человек' : people.length < 5 ? 'человека' : 'человек'}
         </Text>
@@ -55,7 +56,7 @@ export default function ArchiveScreen() {
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, pageWidth]}
         showsVerticalScrollIndicator={false}
         scrollEnabled={filtered.length > 0}
         renderItem={({ item }) => (
@@ -65,9 +66,7 @@ export default function ArchiveScreen() {
               onPress={() => router.push(`/report/${item.id}`)}
               style={({ pressed }) => [styles.mainRow, { opacity: pressed ? 0.78 : 1 }]}
             >
-              <View style={[styles.avatar, { backgroundColor: colors.accent }]}>
-                <Text style={[styles.avatarText, { color: colors.primary }]}>{item.firstName.slice(0, 1).toLocaleUpperCase('ru-RU')}</Text>
-              </View>
+              <Avatar name={item.firstName} />
               <View style={styles.personInfo}>
                 <Text numberOfLines={1} style={[styles.name, { color: colors.foreground }]}>
                   {item.lastName} {item.firstName} {item.middleName}

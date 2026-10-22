@@ -1,6 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Eyebrow, pageWidth, serif } from '@/components/ui';
 import { useColors } from '@/hooks/useColors';
 import { makeBackup, parseBackup, useArchive } from '@/lib/people';
 
@@ -45,17 +46,17 @@ export default function BackupScreen() {
   return (
     <ScrollView
       style={[styles.screen, { backgroundColor: colors.background }]}
-      contentContainerStyle={[styles.content, { paddingTop: Platform.OS === 'web' ? 67 : 22, paddingBottom: 120 }]}
+      contentContainerStyle={[styles.content, pageWidth, { paddingTop: Platform.OS === 'web' ? 67 : 22, paddingBottom: 120 }]}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={[styles.eyebrow, { color: colors.primary }]}>СОХРАННОСТЬ ДАННЫХ</Text>
-      <Text style={[styles.title, { color: colors.foreground }]}>Резервная копия</Text>
+      <Eyebrow>СОХРАННОСТЬ ДАННЫХ</Eyebrow>
+      <Text style={[styles.title, { color: colors.foreground, fontFamily: serif }]}>Резервная копия</Text>
       <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
         Архив хранится на этом устройстве. Создавайте копию и сохраняйте её в надёжном месте.
       </Text>
 
-      <View style={[styles.infoCard, { backgroundColor: colors.primary }]}>
-        <View style={styles.infoIcon}><Feather name="shield" size={21} color="#F2E9D8" /></View>
+      <View style={[styles.infoCard, { backgroundColor: colors.wineDeep }]}>
+        <View style={styles.infoIcon}><Feather name="shield" size={21} color="#E7D3A4" /></View>
         <Text style={styles.infoTitle}>Ваши записи остаются у вас</Text>
         <Text style={styles.infoBody}>
           Данные сохраняются локально. Копия включает ФИО, даты рождения и расчётные коды — храните её бережно.
