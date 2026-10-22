@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { calculatePortrait } from '../lib/calculation.ts';
+import { getNameInterpretations, getPositionInterpretations } from '../lib/interpretations.ts';
 
 test('uses the workbook formulas for the 09.06.2005 example', () => {
   const result = calculatePortrait('2005-06-09', {
@@ -53,4 +54,32 @@ test('rejects impossible birth dates', () => {
   assert.throws(() =>
     calculatePortrait('2005-02-30', { firstName: 'А', middleName: 'Б', lastName: 'В' }),
   );
+});
+
+test('attaches aspect-specific workbook interpretations to the example positions', () => {
+  const result = calculatePortrait('2005-06-09', {
+    firstName: 'Тест',
+    middleName: 'Проверка',
+    lastName: 'Пример',
+  });
+  const byNumber = new Map(result.positions.map((position) => [position.number, position]));
+
+  assert.match(
+    getPositionInterpretations(7, byNumber.get(7).code).find(({ title }) => title === 'Миссия')?.text ?? '',
+    /миссия человека состоит/i,
+  );
+  assert.match(
+    getPositionInterpretations(8, byNumber.get(8).code).find(({ title }) => title === 'Дары для выполнения миссии')?.text ?? '',
+    /дар/i,
+  );
+  assert.match(
+    getPositionInterpretations(13, byNumber.get(13).code).find(({ title }) => title === 'Восприятие себя')?.text ?? '',
+    /человек считает себя справедливым/i,
+  );
+  assert.match(
+    getPositionInterpretations(14, byNumber.get(14).code).find(({ title }) => title === 'Восприятие окружающими')?.text ?? '',
+    /такого человека считают решительным/i,
+  );
+  assert.ok(getNameInterpretations(8)[0].text.length > 0);
+  assert.equal(getPositionInterpretations(30, 99).length, 0);
 });

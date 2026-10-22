@@ -5,6 +5,7 @@ import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, 
 import { useColors } from '@/hooks/useColors';
 import { useArchive } from '@/lib/people';
 import { calculatePortrait } from '@/lib/calculation';
+import { getNameInterpretations, getPositionInterpretations } from '@/lib/interpretations';
 import { exportPortraitPdf } from '@/lib/pdf';
 
 const POSITION_GROUPS = [
@@ -73,7 +74,7 @@ export default function ReportScreen() {
             </View>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Расчётный портрет</Text>
             <Text style={[styles.body, { color: colors.mutedForeground }]}>
-              Коды рассчитаны по формулам и алфавитной таблице из вашего Excel.
+              Коды и трактовки перенесены из вашей расчётной таблицы.
             </Text>
             <View style={styles.nameCodeList}>
               {calculation?.nameCodes.map((item) => (
@@ -87,6 +88,12 @@ export default function ReportScreen() {
                       Нет кодов в таблице: {item.unsupportedLetters.join(', ')}
                     </Text>
                   ) : null}
+                  {getNameInterpretations(item.code).map((block) => (
+                    <View key={block.title} style={styles.nameInterpretation}>
+                      <Text style={[styles.interpretationTitle, { color: colors.foreground }]}>{block.title}</Text>
+                      <Text style={[styles.interpretationBody, { color: colors.mutedForeground }]}>{block.text}</Text>
+                    </View>
+                  ))}
                 </View>
               ))}
             </View>
@@ -99,17 +106,26 @@ export default function ReportScreen() {
                 {group.numbers.map((number) => {
                   const position = calculation?.positions.find((item) => item.number === number);
                   if (!position) return null;
+                  const interpretations = getPositionInterpretations(position.number, position.code);
                   return (
-                    <View key={position.number} style={[styles.positionRow, { borderColor: colors.border }]}>
-                      <View style={[styles.positionBadge, { backgroundColor: colors.accent }]}>
-                        <Text style={[styles.positionNumber, { color: colors.primary }]}>{position.number}</Text>
+                    <View key={position.number} style={[styles.positionCard, { borderColor: colors.border }]}>
+                      <View style={styles.positionRow}>
+                        <View style={[styles.positionBadge, { backgroundColor: colors.accent }]}>
+                          <Text style={[styles.positionNumber, { color: colors.primary }]}>{position.number}</Text>
+                        </View>
+                        <View style={styles.positionInfo}>
+                          <Text style={[styles.positionLabel, { color: colors.mutedForeground }]}>{position.label}</Text>
+                          <Text style={[styles.positionValue, { color: colors.foreground }]}>
+                            {position.code}{position.arcana ? ` · ${position.arcana}` : ' · аркан не найден в таблице'}
+                          </Text>
+                        </View>
                       </View>
-                      <View style={styles.positionInfo}>
-                        <Text style={[styles.positionLabel, { color: colors.mutedForeground }]}>{position.label}</Text>
-                        <Text style={[styles.positionValue, { color: colors.foreground }]}>
-                          {position.code}{position.arcana ? ` · ${position.arcana}` : ' · аркан не найден в таблице'}
-                        </Text>
-                      </View>
+                      {interpretations.map((block) => (
+                        <View key={block.title} style={styles.interpretationBlock}>
+                          <Text style={[styles.interpretationTitle, { color: colors.foreground }]}>{block.title}</Text>
+                          <Text style={[styles.interpretationBody, { color: colors.mutedForeground }]}>{block.text}</Text>
+                        </View>
+                      ))}
                     </View>
                   );
                 })}
@@ -129,7 +145,7 @@ export default function ReportScreen() {
           <View style={[styles.disclaimerCard, { backgroundColor: colors.accent }]}>
             <Feather name="info" size={17} color={colors.primary} />
             <Text style={[styles.disclaimerBody, { color: colors.foreground }]}>
-              Здесь показаны коды и названия арканов. Тексты толкований из книг не включены. Методика не является медицинской диагностикой или стандартизированным психологическим заключением.
+              Трактовки воспроизведены по вашей расчётной таблице. Это авторская символическая методика, а не медицинская диагностика или стандартизированное психологическое заключение.
             </Text>
           </View>
 
@@ -188,14 +204,19 @@ const styles = StyleSheet.create({
   nameCodeLabel: { fontSize: 11, fontWeight: '600' },
   nameCodeValue: { fontSize: 13, fontWeight: '700' },
   warning: { fontSize: 11, lineHeight: 16, marginTop: 3 },
+  nameInterpretation: { gap: 4, marginTop: 7 },
   groupTitle: { fontSize: 16, fontWeight: '700' },
   positionList: { gap: 8 },
-  positionRow: { minHeight: 55, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 7 },
+  positionCard: { borderBottomWidth: StyleSheet.hairlineWidth, paddingBottom: 14, gap: 10 },
+  positionRow: { minHeight: 55, flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 7 },
   positionBadge: { width: 34, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   positionNumber: { fontSize: 12, fontWeight: '700' },
   positionInfo: { flex: 1, gap: 3 },
   positionLabel: { fontSize: 11, lineHeight: 15 },
   positionValue: { fontSize: 13, fontWeight: '700' },
+  interpretationBlock: { gap: 5, paddingLeft: 45 },
+  interpretationTitle: { fontSize: 12, fontWeight: '700', lineHeight: 17 },
+  interpretationBody: { fontSize: 12, lineHeight: 18 },
   disclaimerCard: { borderRadius: 17, padding: 14, flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   disclaimerBody: { flex: 1, fontSize: 11, lineHeight: 17 },
   created: { fontSize: 12 },
