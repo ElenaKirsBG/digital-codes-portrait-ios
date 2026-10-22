@@ -1,5 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  calculatePortrait,
+  isPortraitCalculation,
+  PortraitCalculation,
+} from '@/lib/calculation';
 
 export type Person = {
   id: string;
@@ -8,6 +13,7 @@ export type Person = {
   lastName: string;
   birthDate: string;
   createdAt: string;
+  calculation?: PortraitCalculation;
 };
 
 type ArchiveContextValue = {
@@ -35,8 +41,17 @@ function isPerson(value: unknown): value is Person {
     typeof item.middleName === 'string' &&
     typeof item.lastName === 'string' &&
     typeof item.birthDate === 'string' &&
+    /^\d{4}-\d{2}-\d{2}$/.test(item.birthDate) &&
     typeof item.createdAt === 'string'
   );
+}
+
+function withCalculation(person: Person): Person {
+  if (isPortraitCalculation(person.calculation)) return person;
+  return {
+    ...person,
+    calculation: calculatePortrait(person.birthDate, person),
+  };
 }
 
 export function ArchiveProvider({ children }: { children: React.ReactNode }) {
@@ -54,7 +69,7 @@ export function ArchiveProvider({ children }: { children: React.ReactNode }) {
           if (!Array.isArray(parsed) || !parsed.every(isPerson)) {
             throw new Error('Архив имеет неподдерживаемый формат.');
           }
-          setPeople(parsed);
+          setPeople(parsed.map((person) => withCalculation(person as Person)));
         }
       })
       .catch(() => {
@@ -84,6 +99,7 @@ export function ArchiveProvider({ children }: { children: React.ReactNode }) {
           ...details,
           id: makeId(),
           createdAt: new Date().toISOString(),
+          calculation: calculatePortrait(details.birthDate, details),
         };
         await persist([person, ...people]);
         return person;
@@ -96,7 +112,8 @@ export function ArchiveProvider({ children }: { children: React.ReactNode }) {
         if (!Array.isArray(parsed) || !parsed.every(isPerson)) {
           throw new Error('В файле нет архива в нужном формате.');
         }
-        const merged = [...parsed as Person[]];
+        const restored = (parsed as Person[]).map(withCalculation);
+        const merged = [...restored];
         const ids = new Set(merged.map((person) => person.id));
         for (const person of people) {
           if (!ids.has(person.id)) merged.push(person);

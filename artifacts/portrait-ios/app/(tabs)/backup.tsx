@@ -58,7 +58,7 @@ export default function BackupScreen() {
         <View style={styles.infoIcon}><Feather name="shield" size={21} color="#F2E9D8" /></View>
         <Text style={styles.infoTitle}>Ваши записи остаются у вас</Text>
         <Text style={styles.infoBody}>
-          Данные сохраняются локально. Резервная копия содержит имена и даты рождения — храните её бережно.
+          Данные сохраняются локально. Копия включает ФИО, даты рождения и расчётные коды — храните её бережно.
         </Text>
       </View>
 

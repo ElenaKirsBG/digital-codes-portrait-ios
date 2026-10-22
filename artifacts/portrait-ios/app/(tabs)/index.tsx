@@ -100,7 +100,7 @@ export default function HomeScreen() {
           <Text style={styles.introLabel}>Персональный разбор</Text>
           <Text style={styles.introTitle}>Начните с даты рождения</Text>
           <Text style={styles.introBody}>
-            Добавьте человека в архив. Расчётный алгоритм подключим по вашим книгам и таблицам.
+            Введите ФИО и дату рождения — коды по вашей таблице появятся в отчёте и сохранятся в архиве.
           </Text>
           <Pressable
             testID="add-person"

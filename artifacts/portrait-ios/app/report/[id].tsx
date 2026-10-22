@@ -4,7 +4,15 @@ import React, { useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { useArchive } from '@/lib/people';
-import { exportPersonCardPdf } from '@/lib/pdf';
+import { calculatePortrait } from '@/lib/calculation';
+import { exportPortraitPdf } from '@/lib/pdf';
+
+const POSITION_GROUPS = [
+  { title: 'Жизненный путь', numbers: [1, 2, 3] },
+  { title: 'Психика и миссия', numbers: [4, 5, 6, 7, 8] },
+  { title: 'Кармические позиции', numbers: [9, 10, 11, 15, 17, 18] },
+  { title: 'Гармония и восприятие', numbers: [12, 13, 14, 30] },
+];
 
 export default function ReportScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -14,12 +22,15 @@ export default function ReportScreen() {
   const [exporting, setExporting] = useState(false);
   const person = people.find((item) => item.id === id);
   const fullName = person ? `${person.lastName} ${person.firstName} ${person.middleName}` : '';
+  const calculation = person
+    ? person.calculation ?? calculatePortrait(person.birthDate, person)
+    : null;
 
   const exportCard = async () => {
     if (!person) return;
     setExporting(true);
     try {
-      await exportPersonCardPdf(person);
+      await exportPortraitPdf(person);
     } catch {
       Alert.alert('Не удалось подготовить PDF', 'Попробуйте ещё раз.');
     } finally {
@@ -60,15 +71,66 @@ export default function ReportScreen() {
             <View style={[styles.statusIcon, { backgroundColor: colors.accent }]}>
               <Feather name="layers" size={18} color={colors.primary} />
             </View>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Психологический портрет</Text>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Расчётный портрет</Text>
             <Text style={[styles.body, { color: colors.mutedForeground }]}>
-              Расчёт пока не сформирован. Сначала нужно разобрать и подключить правила из ваших книг и Excel-таблиц, чтобы результат соответствовал вашей методике.
+              Коды рассчитаны по формулам и алфавитной таблице из вашего Excel.
             </Text>
-            <View style={[styles.divider, { backgroundColor: colors.border }]} />
-            <View style={styles.pendingLine}>
-              <View style={[styles.pendingDot, { backgroundColor: colors.primary }]} />
-              <Text style={[styles.pendingText, { color: colors.mutedForeground }]}>Методика ожидает исходные материалы</Text>
+            <View style={styles.nameCodeList}>
+              {calculation?.nameCodes.map((item) => (
+                <View key={item.field} style={[styles.nameCode, { backgroundColor: colors.background }]}>
+                  <Text style={[styles.nameCodeLabel, { color: colors.mutedForeground }]}>{item.field}</Text>
+                  <Text style={[styles.nameCodeValue, { color: colors.foreground }]}>
+                    {item.code === null ? `Сумма ${item.rawTotal}` : `${item.code} · ${item.arcana ?? 'аркан не найден'}`}
+                  </Text>
+                  {item.unsupportedLetters.length > 0 ? (
+                    <Text style={[styles.warning, { color: colors.destructive }]}>
+                      Нет кодов в таблице: {item.unsupportedLetters.join(', ')}
+                    </Text>
+                  ) : null}
+                </View>
+              ))}
             </View>
+          </View>
+
+          {POSITION_GROUPS.map((group) => (
+            <View key={group.title} style={[styles.section, { backgroundColor: colors.card }]}>
+              <Text style={[styles.groupTitle, { color: colors.foreground }]}>{group.title}</Text>
+              <View style={styles.positionList}>
+                {group.numbers.map((number) => {
+                  const position = calculation?.positions.find((item) => item.number === number);
+                  if (!position) return null;
+                  return (
+                    <View key={position.number} style={[styles.positionRow, { borderColor: colors.border }]}>
+                      <View style={[styles.positionBadge, { backgroundColor: colors.accent }]}>
+                        <Text style={[styles.positionNumber, { color: colors.primary }]}>{position.number}</Text>
+                      </View>
+                      <View style={styles.positionInfo}>
+                        <Text style={[styles.positionLabel, { color: colors.mutedForeground }]}>{position.label}</Text>
+                        <Text style={[styles.positionValue, { color: colors.foreground }]}>
+                          {position.code}{position.arcana ? ` · ${position.arcana}` : ' · аркан не найден в таблице'}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+          ))}
+
+          {calculation ? (
+            <View style={[styles.section, { backgroundColor: colors.card }]}>
+              <Text style={[styles.groupTitle, { color: colors.foreground }]}>Возрастная граница</Text>
+              <Text style={[styles.body, { color: colors.mutedForeground }]}>
+                {calculation.ageBoundary} лет · расчёт по формуле из таблицы
+              </Text>
+            </View>
+          ) : null}
+
+          <View style={[styles.disclaimerCard, { backgroundColor: colors.accent }]}>
+            <Feather name="info" size={17} color={colors.primary} />
+            <Text style={[styles.disclaimerBody, { color: colors.foreground }]}>
+              Здесь показаны коды и названия арканов. Тексты толкований из книг не включены. Методика не является медицинской диагностикой или стандартизированным психологическим заключением.
+            </Text>
           </View>
 
           <Text style={[styles.created, { color: colors.mutedForeground }]}>
@@ -83,11 +145,11 @@ export default function ReportScreen() {
           >
             {exporting ? <ActivityIndicator size="small" color={colors.primaryForeground} /> : <Feather name="share-2" size={17} color={colors.primaryForeground} />}
             <Text style={[styles.shareText, { color: colors.primaryForeground }]}>
-              {exporting ? 'Готовим PDF…' : 'Экспортировать карточку в PDF'}
+              {exporting ? 'Готовим PDF…' : 'Экспортировать отчёт в PDF'}
             </Text>
           </Pressable>
           <Text style={[styles.disclaimer, { color: colors.mutedForeground }]}>
-            Отправляется только карточка человека, не расчётный психологический отчёт.
+            PDF можно сохранить или отправить через доступное приложение.
           </Text>
           <Pressable onPress={remove} style={styles.deleteButton}>
             <Feather name="trash-2" size={15} color={colors.destructive} />
@@ -121,10 +183,21 @@ const styles = StyleSheet.create({
   statusIcon: { width: 39, height: 39, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   sectionTitle: { fontSize: 17, fontWeight: '700' },
   body: { fontSize: 13, lineHeight: 20 },
-  divider: { height: 1, marginTop: 4 },
-  pendingLine: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  pendingDot: { width: 7, height: 7, borderRadius: 4 },
-  pendingText: { fontSize: 12, fontWeight: '600' },
+  nameCodeList: { gap: 7, marginTop: 2 },
+  nameCode: { borderRadius: 13, paddingHorizontal: 12, paddingVertical: 10, gap: 3 },
+  nameCodeLabel: { fontSize: 11, fontWeight: '600' },
+  nameCodeValue: { fontSize: 13, fontWeight: '700' },
+  warning: { fontSize: 11, lineHeight: 16, marginTop: 3 },
+  groupTitle: { fontSize: 16, fontWeight: '700' },
+  positionList: { gap: 8 },
+  positionRow: { minHeight: 55, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 7 },
+  positionBadge: { width: 34, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  positionNumber: { fontSize: 12, fontWeight: '700' },
+  positionInfo: { flex: 1, gap: 3 },
+  positionLabel: { fontSize: 11, lineHeight: 15 },
+  positionValue: { fontSize: 13, fontWeight: '700' },
+  disclaimerCard: { borderRadius: 17, padding: 14, flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  disclaimerBody: { flex: 1, fontSize: 11, lineHeight: 17 },
   created: { fontSize: 12 },
   shareButton: { minHeight: 49, borderWidth: 1, borderRadius: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9 },
   shareText: { fontSize: 14, fontWeight: '700' },
